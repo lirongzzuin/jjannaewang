@@ -10,6 +10,9 @@ interface ProductCardProps {
   showTrackButton?: boolean;
   onTrack?: (productId: string) => void;
   isTracked?: boolean;
+  /** When set, the title/image open via this handler instead of a router Link
+   *  (used for Naver search results that must be resolved to a DB product first). */
+  onOpen?: () => void;
 }
 
 export default function ProductCard({
@@ -19,6 +22,7 @@ export default function ProductCard({
   showTrackButton,
   onTrack,
   isTracked,
+  onOpen,
 }: ProductCardProps) {
   const discount =
     product.lowest_price_ever && product.current_lowest_price
@@ -27,7 +31,11 @@ export default function ProductCard({
 
   return (
     <div className="flex items-start gap-4 border-b border-slate-50 p-4">
-      <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+      <div
+        className="size-20 shrink-0 overflow-hidden rounded-lg bg-slate-100"
+        onClick={onOpen}
+        role={onOpen ? "button" : undefined}
+      >
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -44,11 +52,19 @@ export default function ProductCard({
         <p className="mb-1 text-xs font-medium text-slate-400">
           {product.brand || product.category}
         </p>
-        <Link to={`/product/${product.id}`}>
-          <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-primary">
-            {product.name}
-          </h4>
-        </Link>
+        {onOpen ? (
+          <button onClick={onOpen} className="block text-left">
+            <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-primary">
+              {product.name}
+            </h4>
+          </button>
+        ) : (
+          <Link to={`/product/${product.id}`}>
+            <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-primary">
+              {product.name}
+            </h4>
+          </Link>
+        )}
         <div className="mt-2 flex items-baseline gap-2">
           <span className="text-lg font-bold text-primary">
             {product.current_lowest_price

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { api, ApiError } from "@/lib/api";
 import { Product } from "@/types";
@@ -9,9 +9,38 @@ import EmptyState from "@/components/ui/EmptyState";
 const CATEGORIES = ['생수', '기저귀', '라면', '세제', '화장지', '커피', '샴푸', '치약', '밀키트', '과자'];
 
 export default function Search() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Persist a Naver search result into our DB and return the internal product.
+  const resolveProduct = async (p: Product): Promise<Product> => {
+    const res = await api.post<{ product: Product }>("/api/products/resolve", {
+      naver_product_id: p.naver_product_id ?? p.id,
+      name: p.name,
+      brand: p.brand,
+      category: p.category,
+      image_url: p.image_url,
+      price: p.current_lowest_price,
+      shop: p.current_lowest_shop,
+    });
+    return res.product;
+  };
+
+  const openProduct = async (p: Product) => {
+    setBusyId(p.id);
+    try {
+      const internal = await resolveProduct(p);
+      navigate(`/product/${internal.id}`);
+    } catch {
+      // Fallback: still try to navigate (detail will show a not-found state).
+      navigate(`/product/${p.id}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const trimmed = query.trim();
 
@@ -35,32 +64,36 @@ export default function Search() {
     if (!trimmed) setQuery(cat);
   };
 
-  const toggleTrack = async (productId: string) => {
-    const wasTracked = trackedIds.has(productId);
-    // Optimistic toggle.
+  const toggleTrack = async (naverId: string) => {
+    const product = products.find((p) => p.id === naverId);
+    if (!product) return;
+    const wasTracked = trackedIds.has(naverId);
+    // Optimistic toggle (keyed on the search-result id).
     setTrackedIds((prev) => {
       const next = new Set(prev);
-      if (wasTracked) next.delete(productId);
-      else next.add(productId);
+      if (wasTracked) next.delete(naverId);
+      else next.add(naverId);
       return next;
     });
     try {
+      // Resolve to the internal DB product (real data) before tracking.
+      const internal = await resolveProduct(product);
       if (wasTracked) {
-        await api.del("/api/tracking", { product_id: productId });
+        await api.del("/api/tracking", { product_id: internal.id });
       } else {
-        await api.post("/api/tracking", { product_id: productId });
+        await api.post("/api/tracking", { product_id: internal.id });
       }
     } catch (err) {
       // Revert on failure.
       setTrackedIds((prev) => {
         const next = new Set(prev);
-        if (wasTracked) next.add(productId);
-        else next.delete(productId);
+        if (wasTracked) next.add(naverId);
+        else next.delete(naverId);
         return next;
       });
-      if (err instanceof ApiError && err.status === 401) {
-        alert("로그인이 필요해요");
-      }
+      if (err instanceof ApiError && err.status === 401) alert("로그인이 필요해요");
+      else if (err instanceof ApiError && err.status === 429)
+        alert("추적 슬롯이 가득 찼어요. 광고를 보거나 레벨을 올려 늘려보세요!");
     }
   };
 
@@ -147,8 +180,12 @@ export default function Search() {
                 showTrackButton
                 onTrack={toggleTrack}
                 isTracked={trackedIds.has(product.id)}
+                onOpen={() => openProduct(product)}
               />
             ))}
+            {busyId && (
+              <p className="py-3 text-center text-xs text-slate-400">상품 정보를 불러오는 중...</p>
+            )}
           </div>
         </>
       )}

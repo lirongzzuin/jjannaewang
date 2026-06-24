@@ -16,6 +16,7 @@ export default function FeedWrite() {
   const [originalPrice, setOriginalPrice] = useState("");
   const [shopName, setShopName] = useState("");
   const [shopUrl, setShopUrl] = useState("");
+  const [category, setCategory] = useState("food");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reward, setReward] = useState<PioneerReward | null>(null);
@@ -42,6 +43,7 @@ export default function FeedWrite() {
         original_price: originalPrice ? Number(originalPrice) : null,
         shop_name: shopName.trim(),
         shop_url: shopUrl.trim() || null,
+        category,
       });
       if (res.reward) {
         haptic("softMedium");
@@ -79,6 +81,30 @@ export default function FeedWrite() {
             {error}
           </div>
         )}
+
+        <div>
+          <label className="mb-1.5 block text-xs font-bold text-slate-600">카테고리</label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "food", label: "식품" },
+              { id: "living", label: "생활" },
+              { id: "beauty", label: "뷰티" },
+              { id: "digital", label: "디지털" },
+              { id: "etc", label: "기타" },
+            ].map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCategory(c.id)}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                  category === c.id ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <Field label="상품명" required>
           <input

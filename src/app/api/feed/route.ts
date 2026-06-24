@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
     shop_name?: string;
     shop_url?: string;
     product_id?: string;
+    category?: string;
   };
 
-  const { title, description, original_price, deal_price, shop_name, shop_url, product_id } = body;
+  const { title, description, original_price, deal_price, shop_name, shop_url, product_id, category } = body;
 
   if (!title || !shop_name || deal_price === undefined) {
     return NextResponse.json({ error: 'Missing required fields: title, shop_name, deal_price' }, { status: 400 });
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
     shop_name: shop_name.trim(),
     shop_url: shop_url?.trim() || null,
     product_id: product_id ?? null,
+    category: category ?? null,
     fire_count: 0,
     bought_count: 0,
     is_expired: false,
