@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import useSWR from "swr";
 import { getLevelInfo, getNextLevelExp, formatDate, formatPriceShort } from '@/lib/utils';
 import { getLevelPerks, PERK_MILESTONES } from '@/lib/level-perks';
-import { useAppStore } from '@/store';
+import { useAppStore, FONT_SCALE_OPTIONS } from '@/store';
 import { LEVEL_INFO, BADGES, User } from '@/types';
 import { share, getTossShareLink, inviteFriends } from '@/lib/apps-in-toss';
 import { api } from '@/lib/api';
@@ -115,8 +115,40 @@ export default function Profile() {
         ))}
       </div>
 
+      {/* 글자 크기 설정 (접근성) */}
+      <FontSizeSetting />
+
       {/* Version */}
       <p className="text-center text-[11px] text-slate-300 pb-4">짠내왕 v{import.meta.env.VITE_APP_VERSION ?? '0.1.0'} · Made with 💛</p>
+    </div>
+  );
+}
+
+function FontSizeSetting() {
+  const fontScale = useAppStore((s) => s.fontScale);
+  const setFontScale = useAppStore((s) => s.setFontScale);
+  return (
+    <div className="mx-4 mb-6 rounded-2xl border border-slate-100 bg-white p-4">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="material-symbols-outlined text-primary">format_size</span>
+        <p className="text-[15px] font-extrabold text-slate-800">글자 크기</p>
+      </div>
+      <p className="mb-3 text-xs text-slate-400">앱 전체 글자 크기를 조절해요.</p>
+      <div className="flex gap-2">
+        {FONT_SCALE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setFontScale(opt.value)}
+            className={`flex-1 rounded-xl border py-3 font-bold transition-colors ${
+              fontScale === opt.value
+                ? 'border-primary bg-primary text-slate-900'
+                : 'border-slate-200 bg-white text-slate-500'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

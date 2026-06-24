@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 import { api, ApiError } from "@/lib/api";
 import { Product } from "@/types";
@@ -11,7 +11,8 @@ const KEYWORDS = ['생수', '기저귀', '라면', '세제', '화장지', '커�
 
 export default function Search() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
+  const [params] = useSearchParams();
+  const [query, setQuery] = useState(() => params.get('q') ?? '');
   const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
 

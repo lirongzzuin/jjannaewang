@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import BottomNav from "@/components/ui/BottomNav";
 import AppInitializer from "@/components/AppInitializer";
 import LevelUpWatcher from "@/components/LevelUpWatcher";
 import NicknamePrompt from "@/components/NicknamePrompt";
+import { useAppStore } from "@/store";
 
 import Home from "@/pages/Home";
 import Search from "@/pages/Search";
@@ -24,6 +26,12 @@ const NO_NAV_PREFIXES = ["/onboarding", "/product/", "/feed/write", "/tips/write
 
 export default function App() {
   const { pathname } = useLocation();
+  const fontScale = useAppStore((s) => s.fontScale);
+
+  // 글자 크기: rem 기반 UI라 root font-size를 키우면 전체가 확대됨.
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${16 * (fontScale ?? 1)}px`;
+  }, [fontScale]);
 
   const hideNav =
     NO_NAV_PREFIXES.some((p) =>
