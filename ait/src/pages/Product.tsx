@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { formatPrice } from "@/lib/utils";
 import { analyzePriceHistory } from "@/lib/price-analyzer";
 import { api, ApiError } from "@/lib/api";
 import { Product as ProductType, PriceHistory } from "@/types";
 import { share, getTossShareLink, haptic } from "@/lib/apps-in-toss";
-import { useFullScreenAd } from "@/hooks/useFullScreenAd";
 import { useInterstitialOnView } from "@/hooks/useInterstitial";
 import { usePushConsent } from "@/hooks/usePushConsent";
-import { AD_GROUPS } from "@/lib/ads";
 import { useAppStore } from "@/store";
 import { getLevelPerks } from "@/lib/level-perks";
+import { adPolicy } from "@/lib/premium";
 import EmptyState from "@/components/ui/EmptyState";
 import SavingsLogModal from "@/components/savings/SavingsLogModal";
 
@@ -125,7 +124,6 @@ export default function Product() {
   const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
   const premiumTier = useAppStore((s) => s.premiumTier);
-  const isPro = premiumTier !== "free";
   const perks = getLevelPerks(user?.level ?? 1);
 
   const { data, error, isLoading } = useSWR(
@@ -137,12 +135,11 @@ export default function Product() {
   const [isTracked, setIsTracked] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetPrice, setTargetPrice] = useState("");
-  const [analysisUnlocked, setAnalysisUnlocked] = useState(false);
   const [showSavings, setShowSavings] = useState(false);
 
-  const rewardedAd = useFullScreenAd(AD_GROUPS.rewarded);
   const { ensureConsent } = usePushConsent();
-  useInterstitialOnView(isPro, perks.interstitialEvery);
+  // 가격 분석은 전원 무료. 전면광고는 플랜별 광고정책(무료만 노출) + 레벨 빈도.
+  useInterstitialOnView(!adPolicy(premiumTier).showInterstitial, perks.interstitialEvery);
 
   const product = data?.product;
   const history = useMemo(() => data?.history ?? [], [data]);
@@ -184,18 +181,6 @@ export default function Product() {
   }, [history]);
 
   const analysis = useMemo(() => analyzePriceHistory(history), [history]);
-  const analysisVisible = isPro || analysisUnlocked || perks.freeAiAnalysis;
-
-  const handleUnlockAnalysis = () => {
-    if (rewardedAd.isSupported) {
-      rewardedAd.showAd(() => {
-        setAnalysisUnlocked(true);
-        haptic("softMedium");
-      });
-    } else {
-      setAnalysisUnlocked(true);
-    }
-  };
 
   const handleToggleTrack = async () => {
     if (!product) return;
@@ -405,14 +390,8 @@ export default function Product() {
                 <p className="text-[10px] text-slate-400">역대 데이터 기반 · 신뢰도 {analysis.confidence}%</p>
               </div>
             </div>
-            {!analysisVisible && (
-              <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
-                <span className="material-symbols-outlined text-[12px]">lock</span>
-                잠김
-              </span>
-            )}
           </div>
-          <div className={!analysisVisible ? "pointer-events-none select-none blur-sm" : ""}>
+          <div>
             <div className="mb-3">
               <div className="mb-1 flex justify-between text-[10px] text-slate-400">
                 <span>역대 최저</span>
@@ -436,25 +415,6 @@ export default function Product() {
               </p>
             )}
           </div>
-          {!analysisVisible && (
-            <div className="mt-3 space-y-2">
-              <button
-                onClick={handleUnlockAnalysis}
-                disabled={rewardedAd.isSupported && (!rewardedAd.isAdLoaded || rewardedAd.isShowing)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-primary py-2.5 text-sm font-bold text-primary disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]">smart_display</span>
-                {rewardedAd.isSupported && !rewardedAd.isAdLoaded
-                  ? "광고 준비 중..."
-                  : "광고 보고 이번 분석 무료로 보기"}
-              </button>
-              <Link to="/premium">
-                <button className="w-full rounded-xl bg-primary py-2.5 text-sm font-bold text-white">
-                  PRO로 업그레이드하고 항상 보기
-                </button>
-              </Link>
-            </div>
-          )}
         </div>
       )}
 

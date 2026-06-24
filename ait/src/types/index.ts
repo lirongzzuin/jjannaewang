@@ -157,6 +157,7 @@ export interface UserBadge {
 }
 
 export const BADGES = [
+  { code: 'supporter', name: '서포터', emoji: '💛', description: '짠내왕을 후원해주셨어요. 감사합니다!' },
   { code: 'pioneer_deal', name: '첫 제보자', emoji: '🚩', description: '어떤 상품의 첫 특가를 제보했어요' },
   { code: 'pioneer_tip', name: '첫 꿀팁러', emoji: '🍯', description: '어떤 분야의 첫 꿀팁을 작성했어요' },
   { code: 'first_track', name: '첫 알림 등록', emoji: '🔔', description: '첫 번째 상품 추적을 시작했어요' },
@@ -172,10 +173,12 @@ export const BADGES = [
 // Premium tiers
 export type PremiumTier = 'free' | 'pro' | 'master';
 
+// 무료로 모든 기능을 다 쓸 수 있습니다. 플랜 차이는 "토스애드 광고 노출 정도"(+서포터 배지).
+//  무료: 전 기능 + 광고(배너·전면)   프로(900): 전면광고 제거   마스터(1900): 광고 완전 제거
 export const PREMIUM_TIERS = {
-  free: { name: '무료', trackingLimit: 10, chartMonths: 1 },
-  pro: { name: '프로', trackingLimit: 50, chartMonths: 6, price: 2900 },
-  master: { name: '마스터', trackingLimit: Infinity, chartMonths: 12, price: 5900 },
+  free: { name: '무료', trackingLimit: 20, chartMonths: 12, price: 0 },
+  pro: { name: '프로 서포터', trackingLimit: 100, chartMonths: 12, price: 900 },
+  master: { name: '마스터 서포터', trackingLimit: Infinity, chartMonths: 12, price: 1900 },
 } as const;
 
 // Naver Shopping API

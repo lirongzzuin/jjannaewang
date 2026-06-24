@@ -77,6 +77,10 @@ export async function POST(req: NextRequest) {
       console.error('premium grant error:', updErr.message);
       return NextResponse.json({ error: '권한 부여에 실패했어요' }, { status: 500 });
     }
+    // Supporter badge (thank-you for supporting the developer).
+    await supabase
+      .from('user_badges')
+      .upsert({ user_id: userId, badge_code: 'supporter' }, { onConflict: 'user_id,badge_code' });
   }
 
   return NextResponse.json({ ok: true, orderId, productId, status: orderStatus });

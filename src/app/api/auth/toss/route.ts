@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { exchangeTossCode, signSession } from '@/lib/auth';
+import { activeTier } from '@/lib/premium';
 
 // CORS + OPTIONS are handled centrally in src/middleware.ts.
 
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
   } catch {
     /* best-effort */
   }
+
+  const tier = activeTier(dbUser.premium_tier, dbUser.premium_expiry);
+  dbUser.premium_tier = tier === 'free' ? null : tier;
 
   const token = signSession(dbUser.id, dbUser.toss_user_id);
   return NextResponse.json({ token, user: dbUser });

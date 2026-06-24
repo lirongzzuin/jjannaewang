@@ -127,6 +127,29 @@ export function createOneTimePurchaseOrder(params: PurchaseParams): () => void {
   return () => clearTimeout(timer);
 }
 
+/**
+ * Create an auto-renewing subscription order (Apps-in-Toss IAP, callback pattern).
+ * Used for the monthly Premium tiers. Same shape as one-time purchase.
+ */
+export function createSubscriptionPurchaseOrder(params: PurchaseParams): () => void {
+  if (!USE_MOCK && typeof AIT.IAP?.createSubscriptionPurchaseOrder === "function") {
+    return AIT.IAP.createSubscriptionPurchaseOrder(params as never) as () => void;
+  }
+  // Dev mock: simulate a successful subscription after 1.2s
+  const timer = setTimeout(async () => {
+    try {
+      const granted = await params.options.processProductGrant({
+        orderId: "mock-sub-" + Date.now(),
+      });
+      if (granted) params.onEvent?.({ type: "SUCCESS" });
+      else params.onError?.(new Error("processProductGrant returned false"));
+    } catch (err) {
+      params.onError?.(err instanceof Error ? err : new Error(String(err)));
+    }
+  }, 1200);
+  return () => clearTimeout(timer);
+}
+
 /** Fetch pending (unprocessed) IAP orders. Call on app start to resume them. */
 export async function getPendingOrders(): Promise<{ orders: PendingOrder[] }> {
   if (!USE_MOCK && typeof AIT.IAP?.getPendingOrders === "function") {
@@ -205,16 +228,23 @@ showFullScreenAd.isSupported = (): boolean => isTossApp();
 
 // ─── Viral / Referral ────────────────────────────────────────────────────────
 
-/** Open the Toss contacts viral sheet for friend invitation with rewards. */
-export async function contactsViral(params?: {
-  options?: { moduleId?: string };
-  onEvent?: (event: { type: string; data?: unknown }) => void;
-  onError?: (error: Error) => void;
-}): Promise<void> {
-  if (!USE_MOCK && typeof AIT.contactsViral === "function") {
-    return AIT.contactsViral((params ?? {}) as never) as unknown as Promise<void>;
+/**
+ * Invite friends. Uses the Toss contacts-viral reward sheet when a console-issued
+ * moduleId is configured (VITE_CONTACTS_VIRAL_MODULE_ID); otherwise falls back to
+ * sharing the app link so the button always does something useful.
+ */
+export async function inviteFriends(url: string, message: string): Promise<void> {
+  const moduleId = import.meta.env.VITE_CONTACTS_VIRAL_MODULE_ID;
+  if (!USE_MOCK && moduleId && typeof AIT.contactsViral === "function") {
+    try {
+      AIT.contactsViral({ options: { moduleId }, onError: () => {} } as never);
+      return;
+    } catch {
+      /* fall back to share */
+    }
   }
-  alert("친구 초대 기능은 토스 앱에서 사용할 수 있어요!");
+  const link = await getTossShareLink(url);
+  await share({ message: `${message}\n${link}` });
 }
 
 // ─── Push notification consent ───────────────────────────────────────────────

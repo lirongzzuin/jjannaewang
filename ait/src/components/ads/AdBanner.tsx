@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { attachBanner, isBannerSupported, type BannerOptions } from "@/lib/apps-in-toss";
 import { AD_GROUPS } from "@/lib/ads";
+import { useAppStore } from "@/store";
+import { adPolicy } from "@/lib/premium";
 
 /**
  * Banner ad slot (TossAds.attachBanner).
@@ -16,14 +18,19 @@ export default function AdBanner({
   className?: string;
   options?: BannerOptions;
 }) {
+  const premiumTier = useAppStore((s) => s.premiumTier);
+  const showBanner = adPolicy(premiumTier).showBanner; // 마스터는 배너도 제거
   const ref = useRef<HTMLDivElement>(null);
   const [supported] = useState(() => isBannerSupported());
 
   useEffect(() => {
-    if (!supported || !ref.current) return;
+    if (!showBanner || !supported || !ref.current) return;
     const cleanup = attachBanner(AD_GROUPS.banner, ref.current, options ?? { variant: "card" });
     return cleanup;
-  }, [supported, options]);
+  }, [showBanner, supported, options]);
+
+  // Plan with ads removed → render nothing.
+  if (!showBanner) return null;
 
   if (supported) {
     return <div ref={ref} className={`min-h-[96px] w-full ${className}`} />;

@@ -4,7 +4,7 @@ import { getLevelInfo, getNextLevelExp, formatDate, formatPriceShort } from '@/l
 import { getLevelPerks, PERK_MILESTONES } from '@/lib/level-perks';
 import { useAppStore } from '@/store';
 import { LEVEL_INFO, BADGES, User } from '@/types';
-import { share, getTossShareLink, contactsViral } from '@/lib/apps-in-toss';
+import { share, getTossShareLink, inviteFriends } from '@/lib/apps-in-toss';
 import { api } from '@/lib/api';
 
 interface MeResponse {
@@ -27,7 +27,8 @@ async function handleShareProfile(nickname: string, level: number) {
 }
 
 async function handleInviteFriends() {
-  await contactsViral();
+  const url = `${window.location.origin}/`;
+  await inviteFriends(url, '[짠내왕] 같이 최저가 추적하고 절약해요! 👑');
 }
 
 export default function Profile() {

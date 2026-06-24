@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
 import { getLevelExtraSlots } from '@/lib/level-perks';
+import { activeTier, TIER_TRACKING_BASE } from '@/lib/premium';
 
 export async function GET(req: NextRequest) {
   const session = getAuthUser(req);
@@ -35,11 +36,12 @@ export async function POST(req: NextRequest) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('premium_tier, level, bonus_tracking_slots')
+    .select('premium_tier, premium_expiry, level, bonus_tracking_slots')
     .eq('id', session.uid)
     .single();
-  const base = user?.premium_tier === 'master' ? Infinity : user?.premium_tier === 'pro' ? 50 : 10;
-  // Tier base + level perks + rewarded-ad bonus slots.
+  // Effective tier (expired subscription → free), then base + level + ad-bonus.
+  const tier = activeTier(user?.premium_tier, user?.premium_expiry);
+  const base = TIER_TRACKING_BASE[tier];
   const limit =
     base === Infinity
       ? Infinity

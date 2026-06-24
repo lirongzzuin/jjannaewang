@@ -156,6 +156,7 @@ export interface UserBadge {
 }
 
 export const BADGES = [
+  { code: 'supporter', name: '서포터', emoji: '💛', description: '짠내왕을 후원해주셨어요. 감사합니다!' },
   { code: 'pioneer_deal', name: '첫 제보자', emoji: '🚩', description: '어떤 상품의 첫 특가를 제보했어요' },
   { code: 'pioneer_tip', name: '첫 꿀팁러', emoji: '🍯', description: '어떤 분야의 첫 꿀팁을 작성했어요' },
   { code: 'first_track', name: '첫 알림 등록', emoji: '🔔', description: '첫 번째 상품 추적을 시작했어요' },

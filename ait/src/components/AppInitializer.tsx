@@ -52,9 +52,13 @@ export default function AppInitializer() {
         /* best-effort */
       }
 
-      // 3) Daily attendance streak.
+      // 3) Daily attendance streak + refresh user (keeps tier/expiry fresh).
       if (getToken()) {
         await api.post("/api/me/streak", {}).catch(() => {});
+        await api
+          .get<{ user: User }>("/api/me")
+          .then((me) => me?.user && setUser(me.user))
+          .catch(() => {});
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

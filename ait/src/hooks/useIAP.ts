@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import {
   createOneTimePurchaseOrder,
+  createSubscriptionPurchaseOrder,
   getPendingOrders,
   completeProductGrant,
   type PendingOrder,
@@ -23,20 +24,21 @@ export function useIAP() {
   const [state, setState] = useState<IAPState>({ status: "idle", error: null });
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  const purchase = useCallback(
-    (sku: string, onSuccess?: () => void, onCancel?: () => void): (() => void) => {
+  const run = useCallback(
+    (
+      create: typeof createOneTimePurchaseOrder,
+      sku: string,
+      onSuccess?: () => void,
+      onCancel?: () => void,
+    ): (() => void) => {
       setState({ status: "pending", error: null });
-
-      const cleanup = createOneTimePurchaseOrder({
+      const cleanup = create({
         options: {
           sku,
           processProductGrant: async ({ orderId }) => {
             try {
-              await api.post("/api/iap-webhook", {
-                orderId,
-                sku,
-                event: "PURCHASE_COMPLETED",
-              });
+              // Server verifies the order with Toss + grants the entitlement.
+              await api.post("/api/iap-webhook", { orderId, sku, event: "PURCHASE_COMPLETED" });
               await completeProductGrant({ params: { orderId } });
               return true;
             } catch (err) {
@@ -56,11 +58,24 @@ export function useIAP() {
         },
         onError: (err) => setState({ status: "error", error: err.message }),
       });
-
       cleanupRef.current = cleanup;
       return cleanup;
     },
     [],
+  );
+
+  // One-time purchase.
+  const purchase = useCallback(
+    (sku: string, onSuccess?: () => void, onCancel?: () => void) =>
+      run(createOneTimePurchaseOrder, sku, onSuccess, onCancel),
+    [run],
+  );
+
+  // Auto-renewing subscription (monthly Premium tiers).
+  const subscribe = useCallback(
+    (sku: string, onSuccess?: () => void, onCancel?: () => void) =>
+      run(createSubscriptionPurchaseOrder, sku, onSuccess, onCancel),
+    [run],
   );
 
   const resumePendingOrders = useCallback(async (): Promise<PendingOrder[]> => {
@@ -81,5 +96,5 @@ export function useIAP() {
 
   const reset = useCallback(() => setState({ status: "idle", error: null }), []);
 
-  return { ...state, purchase, resumePendingOrders, reset };
+  return { ...state, purchase, subscribe, resumePendingOrders, reset };
 }

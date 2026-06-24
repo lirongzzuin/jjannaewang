@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import useSWR from "swr";
 import { formatPrice } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api";
-import { UserTracking } from "@/types";
+import { UserTracking, PREMIUM_TIERS } from "@/types";
 import { useAppStore } from "@/store";
 import EmptyState from "@/components/ui/EmptyState";
 import SavingsLogModal from "@/components/savings/SavingsLogModal";
@@ -20,9 +20,6 @@ const FILTER_TABS = [
   { id: "alert_off", label: "알림 꺼짐" },
 ];
 
-const TOTAL_SLOTS = 10;
-const PRO_SLOTS = 50;
-
 // A tracking has met its target when the current lowest price is at/under target.
 function isTargetMet(t: UserTracking): boolean {
   const price = t.product?.current_lowest_price;
@@ -31,6 +28,7 @@ function isTargetMet(t: UserTracking): boolean {
 
 export default function Tracking() {
   const user = useAppStore((s) => s.user);
+  const premiumTier = useAppStore((s) => s.premiumTier);
   const [activeFilter, setActiveFilter] = useState("all");
   const [adSlotBonus, setAdSlotBonus] = useState(0);
   const [logItem, setLogItem] = useState<UserTracking | null>(null);
@@ -135,7 +133,10 @@ export default function Tracking() {
   };
 
   const levelBonus = getLevelPerks(user?.level ?? 1).extraTrackingSlots;
-  const slotCap = TOTAL_SLOTS + levelBonus + adSlotBonus;
+  const tierBase = PREMIUM_TIERS[premiumTier].trackingLimit; // 무료 20 / 프로 100 / 마스터 ∞
+  const slotCap = tierBase === Infinity ? Infinity : tierBase + levelBonus + adSlotBonus;
+  const slotCapLabel = slotCap === Infinity ? "무제한" : String(slotCap);
+  const slotPct = slotCap === Infinity ? 8 : Math.min(100, (trackings.length / slotCap) * 100);
 
   return (
     <div className="min-h-screen bg-background-light">
@@ -150,14 +151,14 @@ export default function Tracking() {
           <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5">
             <span className="material-symbols-outlined text-[16px] text-slate-500">folder</span>
             <span className="text-xs font-bold text-slate-600">
-              {trackings.length}/{slotCap}
+              {trackings.length}/{slotCapLabel}
             </span>
           </div>
         </div>
         <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${Math.min(100, (trackings.length / slotCap) * 100)}%` }}
+            style={{ width: `${slotPct}%` }}
           />
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -342,17 +343,17 @@ export default function Tracking() {
               👑
             </div>
             <div>
-              <p className="font-bold">PRO로 업그레이드</p>
-              <p className="text-xs text-white/70">추적 슬롯 {PRO_SLOTS}개 + 6개월 차트</p>
+              <p className="font-bold">서포터 되기 💛</p>
+              <p className="text-xs text-white/70">광고 줄이기 + 슬롯 더 + 서포터 배지</p>
             </div>
           </div>
           <p className="mb-3 text-xs text-white/60">
-            현재 {trackings.length}/{slotCap} 슬롯 사용 중
+            현재 {trackings.length}/{slotCapLabel} 슬롯 사용 중 · 무료로도 충분히 쓸 수 있어요
           </p>
           <div className="space-y-2">
             <Link to="/premium">
               <button className="w-full rounded-xl bg-primary py-2.5 text-sm font-extrabold text-slate-900">
-                월 ₩2,900 시작하기
+                월 ₩900부터 후원하기
               </button>
             </Link>
             <button
