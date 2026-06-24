@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import useSWR from "swr";
+import NicknameModal from "@/components/ui/NicknameModal";
 import { getLevelInfo, getNextLevelExp, formatDate, formatPriceShort } from '@/lib/utils';
 import { getLevelPerks, PERK_MILESTONES } from '@/lib/level-perks';
 import { useAppStore, FONT_SCALE_OPTIONS } from '@/store';
@@ -162,6 +164,7 @@ function ProfileBody({
   badges: { badge_code: string; earned_at: string }[];
   stats: MeResponse['stats'];
 }) {
+  const [editNick, setEditNick] = useState(false);
   const levelInfo = getLevelInfo(user.level);
   const prevLevelInfo = getLevelInfo(Math.max(1, user.level - 1));
   const nextLevelExp = getNextLevelExp(user.level);
@@ -202,7 +205,16 @@ function ProfileBody({
 
           {/* User info */}
           <div className="flex-1 min-w-0 pt-1">
-            <h2 className="text-xl font-extrabold text-slate-900">{user.nickname}</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-xl font-extrabold text-slate-900 truncate">{user.nickname}</h2>
+              <button
+                onClick={() => setEditNick(true)}
+                className="flex items-center gap-0.5 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"
+                aria-label="닉네임 변경"
+              >
+                <span className="material-symbols-outlined text-[14px]">edit</span>변경
+              </button>
+            </div>
             <p className="text-sm font-bold text-primary mt-0.5">{levelInfo.title}</p>
             <p className="text-xs text-slate-400 mt-1">
               가입일 {formatDate(user.created_at)}
@@ -300,6 +312,8 @@ function ProfileBody({
           ))}
         </div>
       </div>
+
+      <NicknameModal open={editNick} onClose={() => setEditNick(false)} />
     </>
   );
 }
