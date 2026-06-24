@@ -7,3 +7,4 @@ dist
 *.ait
 ait/node_modules
 ait/dist
+.vercel
