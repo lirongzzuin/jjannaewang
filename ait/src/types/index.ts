@@ -59,6 +59,7 @@ export interface UserTracking {
   user_id: string;
   product_id: string;
   target_price: number | null;
+  baseline_price: number | null;
   alert_enabled: boolean;
   last_alerted_at: string | null;
   created_at: string;

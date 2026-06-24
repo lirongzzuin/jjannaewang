@@ -436,3 +436,9 @@ ALTER TABLE deal_posts
 
 CREATE INDEX IF NOT EXISTS idx_deal_posts_category ON deal_posts (category);
 
+-- ===== 006_tracking_baseline.sql =====
+-- Baseline price = the product's price when the user FIRST started tracking it.
+-- Used to auto-compute "how much I saved vs. when I started watching".
+ALTER TABLE user_trackings
+  ADD COLUMN IF NOT EXISTS baseline_price numeric;
+

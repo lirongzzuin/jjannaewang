@@ -46,10 +46,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Tracking limit reached', code: 'LIMIT_REACHED' }, { status: 429 });
   }
 
+  // Baseline = the product's price when the user FIRST starts tracking. Keep an
+  // existing baseline on re-track so the savings reference point never resets.
+  const [{ data: existing }, { data: product }] = await Promise.all([
+    supabase
+      .from('user_trackings')
+      .select('baseline_price')
+      .eq('user_id', session.uid)
+      .eq('product_id', product_id)
+      .maybeSingle(),
+    supabase.from('products').select('current_lowest_price').eq('id', product_id).single(),
+  ]);
+  const baseline = existing?.baseline_price ?? product?.current_lowest_price ?? null;
+
   const { data, error } = await supabase.from('user_trackings').upsert({
     user_id: session.uid,
     product_id,
     target_price: target_price || null,
+    baseline_price: baseline,
     alert_enabled: true,
   }).select().single();
 

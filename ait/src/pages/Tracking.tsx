@@ -280,6 +280,12 @@ export default function Tracking() {
                           >
                             {current != null ? formatPrice(current) : "가격 확인 중"}
                           </span>
+                          {item.baseline_price != null && current != null &&
+                            item.baseline_price > current && (
+                              <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-600">
+                                시작가 대비 ▼{formatPrice(item.baseline_price - current)}
+                              </span>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -358,8 +364,11 @@ export default function Tracking() {
         onClose={() => setLogItem(null)}
         productId={logItem?.product_id}
         productName={logItem?.product?.name}
-        defaultOriginal={logItem?.product?.current_lowest_price ?? undefined}
-        defaultPurchased={logItem?.target_price ?? undefined}
+        // 기준가 = 추적을 처음 시작했을 때 가격, 구매가 = 지금 최저가(수정 가능)
+        defaultOriginal={
+          logItem?.baseline_price ?? logItem?.product?.current_lowest_price ?? undefined
+        }
+        defaultPurchased={logItem?.product?.current_lowest_price ?? logItem?.target_price ?? undefined}
         source="tracking"
         onLogged={() => mutate()}
       />
