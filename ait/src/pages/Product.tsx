@@ -184,7 +184,7 @@ export default function Product() {
   const handleToggleTrack = async () => {
     if (!product) return;
     if (!user) {
-      navigate("/profile");
+      alert("토스 계정 연결 중이에요. 잠시 후 다시 시도해주세요.");
       return;
     }
     if (isTracked) {
@@ -376,17 +376,17 @@ export default function Product() {
         </div>
       </div>
 
-      {/* AI Analysis card */}
+      {/* Price analysis card (statistics over real price history) */}
       {history.length > 0 && (
         <div className="mx-4 mt-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-base">🤖</span>
+                <span className="text-base">📊</span>
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">AI 가격 분석</p>
-                <p className="text-[10px] text-slate-400">신뢰도 {analysis.confidence}%</p>
+                <p className="text-sm font-bold text-slate-900">가격 분석</p>
+                <p className="text-[10px] text-slate-400">역대 데이터 기반 · 신뢰도 {analysis.confidence}%</p>
               </div>
             </div>
             {!analysisVisible && (

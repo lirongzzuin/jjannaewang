@@ -1,14 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 
-// Intro / landing screen.
-// Toss review requires explaining the service BEFORE forcing login —
-// this screen does exactly that, with login as an explicit opt-in.
+// Optional intro. Apps-in-Toss has no separate login — identity comes from Toss
+// automatically (see AppInitializer), so this is purely informational.
 const FEATURES = [
   {
     icon: "monitoring",
     title: "최저가를 주식 차트처럼",
-    desc: "생활용품 가격 변동을 한눈에. 지금이 살 때인지 AI가 알려줘요.",
+    desc: "생활용품 가격 변동을 한눈에. 지금이 살 때인지 데이터로 분석해드려요.",
   },
   {
     icon: "notifications_active",
@@ -24,12 +22,6 @@ const FEATURES = [
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { login, isLoading, error } = useAuth();
-
-  const handleLogin = async () => {
-    const user = await login();
-    if (user) navigate("/", { replace: true });
-  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background-light px-6 py-10">
@@ -63,19 +55,11 @@ export default function Onboarding() {
       </div>
 
       <div className="mt-8 space-y-3">
-        {error && <p className="text-center text-xs font-medium text-red-500">{error}</p>}
-        <button
-          onClick={handleLogin}
-          disabled={isLoading}
-          className="w-full rounded-2xl bg-primary py-4 text-base font-bold text-slate-900 shadow-lg shadow-primary/30 transition-all active:scale-95 disabled:opacity-60"
-        >
-          {isLoading ? "로그인 중..." : "토스로 시작하기"}
-        </button>
         <button
           onClick={() => navigate("/", { replace: true })}
-          className="w-full py-2 text-xs font-medium text-slate-400"
+          className="w-full rounded-2xl bg-primary py-4 text-base font-bold text-slate-900 shadow-lg shadow-primary/30 transition-all active:scale-95"
         >
-          먼저 둘러보기
+          시작하기
         </button>
         <p className="text-center text-[10px] leading-relaxed text-slate-400">
           가격 정보는 참고용이며 실제 구매가와 다를 수 있어요.

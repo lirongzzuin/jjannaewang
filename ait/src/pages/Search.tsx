@@ -91,7 +91,7 @@ export default function Search() {
         else next.delete(naverId);
         return next;
       });
-      if (err instanceof ApiError && err.status === 401) alert("로그인이 필요해요");
+      if (err instanceof ApiError && err.status === 401) alert("토스 계정 연결 중이에요. 잠시 후 다시 시도해주세요.");
       else if (err instanceof ApiError && err.status === 429)
         alert("추적 슬롯이 가득 찼어요. 광고를 보거나 레벨을 올려 늘려보세요!");
     }

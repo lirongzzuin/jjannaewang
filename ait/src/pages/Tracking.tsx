@@ -169,11 +169,11 @@ export default function Tracking() {
       <div className="space-y-3 p-4">
         {unauthorized ? (
           <EmptyState
-            icon="lock"
-            title="로그인이 필요해요"
-            description="토스로 로그인하고 관심 상품을 추적해보세요"
-            ctaLabel="로그인하러 가기"
-            ctaTo="/profile"
+            icon="hourglass_empty"
+            title="토스 계정을 연결하는 중이에요"
+            description="잠시 후 관심 상품 추적을 시작할 수 있어요"
+            ctaLabel="상품 검색하기"
+            ctaTo="/search"
           />
         ) : isLoading ? (
           <div className="flex items-center justify-center py-20">

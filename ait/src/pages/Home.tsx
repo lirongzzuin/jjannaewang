@@ -233,15 +233,10 @@ export default function Home() {
             ) : (
               <div className="relative">
                 <p className="text-white/80 text-xs font-medium mb-1">{currentMonthLabel} 누적 절약</p>
-                <p className="text-xl font-extrabold text-white leading-snug mb-4">
-                  로그인하고 절약 기록을<br />모아보세요
+                <p className="text-xl font-extrabold text-white leading-snug mb-2">
+                  토스 계정을 연결하는 중이에요
                 </p>
-                <Link to="/profile">
-                  <div className="inline-flex items-center gap-1 bg-white text-primary text-sm font-bold px-4 py-2 rounded-full">
-                    로그인하기
-                    <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                  </div>
-                </Link>
+                <p className="text-white/80 text-xs">잠시만 기다리면 내 절약 기록이 표시돼요</p>
               </div>
             )}
           </div>
@@ -370,10 +365,10 @@ export default function Home() {
           {!isLoggedIn ? (
             <div className="px-4">
               <Link
-                to="/profile"
+                to="/search"
                 className="flex items-center justify-between bg-white rounded-xl px-4 py-3.5 border border-slate-100 shadow-sm"
               >
-                <span className="text-sm font-semibold text-slate-700">로그인하고 추적을 시작하세요</span>
+                <span className="text-sm font-semibold text-slate-700">상품을 검색해 추적을 시작하세요</span>
                 <span className="material-symbols-outlined text-[18px] text-slate-400">chevron_right</span>
               </Link>
             </div>

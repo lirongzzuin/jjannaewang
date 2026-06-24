@@ -100,14 +100,11 @@ export default function DailyBriefing() {
           )}
         </div>
       ) : (
-        <Link to="/profile" className="block">
-          <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2.5">
-            <p className="text-xs font-semibold text-slate-700">
-              로그인하고 또래와 절약 순위를 비교해보세요
-            </p>
-            <span className="material-symbols-outlined text-[18px] text-primary">chevron_right</span>
-          </div>
-        </Link>
+        <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+          <p className="text-xs font-semibold text-slate-600">
+            토스 계정을 연결하면 또래와 절약 순위를 비교해드려요
+          </p>
+        </div>
       )}
 
       {/* Daily frugal tip */}

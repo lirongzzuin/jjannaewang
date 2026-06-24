@@ -5,8 +5,6 @@ import { getLevelPerks, PERK_MILESTONES } from '@/lib/level-perks';
 import { useAppStore } from '@/store';
 import { LEVEL_INFO, BADGES, User } from '@/types';
 import { share, getTossShareLink, contactsViral } from '@/lib/apps-in-toss';
-import { useAuth } from '@/hooks/useAuth';
-import EmptyState from '@/components/ui/EmptyState';
 import { api } from '@/lib/api';
 
 interface MeResponse {
@@ -73,11 +71,9 @@ export default function Profile() {
       </header>
 
       {!storeUser ? (
-        <EmptyState
-          icon="account_circle"
-          title="로그인하고 내 절약 기록을 확인하세요"
-          description="레벨, 배지, 절약 랭킹을 모아볼 수 있어요"
-        />
+        <div className="flex items-center justify-center py-24">
+          <span className="material-symbols-outlined animate-spin text-4xl text-slate-300">progress_activity</span>
+        </div>
       ) : isLoading || !data ? (
         <div className="flex items-center justify-center py-24">
           <span className="material-symbols-outlined animate-spin text-4xl text-slate-300">progress_activity</span>
@@ -121,11 +117,6 @@ export default function Profile() {
             </div>
           </Link>
         ))}
-      </div>
-
-      {/* Auth */}
-      <div className="px-4 pb-6">
-        <AuthRow />
       </div>
 
       {/* Version */}
@@ -282,34 +273,6 @@ function ProfileBody({
         </div>
       </div>
     </>
-  );
-}
-
-function AuthRow() {
-  const storeUser = useAppStore((s) => s.user);
-  const { login, logout, isLoading, error } = useAuth();
-
-  if (storeUser) {
-    return (
-      <button
-        onClick={logout}
-        className="w-full rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-500"
-      >
-        로그아웃
-      </button>
-    );
-  }
-  return (
-    <div className="space-y-1.5">
-      <button
-        onClick={() => login()}
-        disabled={isLoading}
-        className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-slate-900 disabled:opacity-60"
-      >
-        {isLoading ? '로그인 중...' : '토스로 로그인'}
-      </button>
-      {error && <p className="text-center text-[11px] text-red-500">{error}</p>}
-    </div>
   );
 }
 

@@ -21,7 +21,7 @@ const FEATURES = [
     icon: 'show_chart',
   },
   {
-    label: 'AI 가격 분석',
+    label: '가격 분석 (항상 열람)',
     free: false,
     pro: true,
     master: true,
@@ -101,7 +101,7 @@ export default function Premium() {
         <div className="text-4xl mb-3">👑</div>
         <h2 className="text-2xl font-extrabold mb-2">더 똑똑한 절약</h2>
         <p className="text-white/70 text-sm leading-relaxed">
-          AI 분석으로 최저가 타이밍을 잡고<br />절약을 레벨업하세요
+          가격 분석으로 최저가 타이밍을 잡고<br />절약을 레벨업하세요
         </p>
       </div>
 
