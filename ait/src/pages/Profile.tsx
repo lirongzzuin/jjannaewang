@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import useSWR from "swr";
 import { getLevelInfo, getNextLevelExp, formatDate, formatPriceShort } from '@/lib/utils';
+import { getLevelPerks, PERK_MILESTONES } from '@/lib/level-perks';
 import { useAppStore } from '@/store';
 import { LEVEL_INFO, BADGES, User } from '@/types';
 import { share, getTossShareLink, contactsViral } from '@/lib/apps-in-toss';
@@ -224,6 +225,9 @@ function ProfileBody({
         </div>
       </div>
 
+      {/* Level perks */}
+      <LevelPerksSection level={user.level} />
+
       {/* Badges */}
       <div className="bg-white mb-3 px-4 py-4">
         <div className="flex items-center justify-between mb-3">
@@ -302,6 +306,49 @@ function AuthRow() {
         {isLoading ? '로그인 중...' : '토스로 로그인'}
       </button>
       {error && <p className="text-center text-[11px] text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+function LevelPerksSection({ level }: { level: number }) {
+  const perks = getLevelPerks(level);
+  const next = PERK_MILESTONES.find((m) => m.level > level);
+
+  const active: string[] = [];
+  if (perks.extraTrackingSlots > 0) active.push(`추적 슬롯 +${perks.extraTrackingSlots}`);
+  if (perks.freeAiAnalysis) active.push("AI 가격 분석 무료");
+  if (perks.interstitialEvery === Infinity) active.push("전면광고 없음");
+  else if (perks.interstitialEvery > 4) active.push("전면광고 절반");
+
+  return (
+    <div className="bg-white mb-3 px-4 py-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-extrabold text-slate-900">레벨 혜택</h3>
+        <span className="text-[11px] text-slate-400">EXP를 모아 레벨업하면 더 많은 혜택이 열려요</span>
+      </div>
+      {active.length > 0 ? (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {active.map((a) => (
+            <span
+              key={a}
+              className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary"
+            >
+              <span className="material-symbols-outlined text-[13px]">check_circle</span>
+              {a}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mb-3 text-xs text-slate-400">아직 열린 혜택이 없어요. 활동하고 레벨을 올려보세요!</p>
+      )}
+      {next && (
+        <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+          <span className="material-symbols-outlined text-[18px] text-amber-500">lock_open</span>
+          <p className="text-xs text-amber-800">
+            <span className="font-bold">Lv.{next.level}</span> 달성 시 · {next.label}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

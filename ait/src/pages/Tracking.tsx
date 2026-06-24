@@ -9,6 +9,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { useFullScreenAd } from "@/hooks/useFullScreenAd";
 import { usePushConsent } from "@/hooks/usePushConsent";
 import { AD_GROUPS } from "@/lib/ads";
+import { getLevelPerks } from "@/lib/level-perks";
 import { haptic, requestReview } from "@/lib/apps-in-toss";
 
 const FILTER_TABS = [
@@ -121,7 +122,8 @@ export default function Tracking() {
     }
   };
 
-  const slotCap = TOTAL_SLOTS + adSlotBonus;
+  const levelBonus = getLevelPerks(user?.level ?? 1).extraTrackingSlots;
+  const slotCap = TOTAL_SLOTS + levelBonus + adSlotBonus;
 
   return (
     <div className="min-h-screen bg-background-light">

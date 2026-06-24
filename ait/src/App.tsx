@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/ui/BottomNav";
 import AppInitializer from "@/components/AppInitializer";
+import LevelUpWatcher from "@/components/LevelUpWatcher";
 import { getToken } from "@/lib/session";
 
 import Home from "@/pages/Home";
@@ -57,6 +58,7 @@ export default function App() {
   return (
     <div className="relative mx-auto min-h-screen max-w-app overflow-x-hidden bg-white shadow-xl">
       <AppInitializer />
+      <LevelUpWatcher />
       <main className={hideNav ? "" : "pb-24"}>
         <Routes>
           <Route path="/" element={<Home />} />

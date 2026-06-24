@@ -11,6 +11,7 @@ import { useInterstitialOnView } from "@/hooks/useInterstitial";
 import { usePushConsent } from "@/hooks/usePushConsent";
 import { AD_GROUPS } from "@/lib/ads";
 import { useAppStore } from "@/store";
+import { getLevelPerks } from "@/lib/level-perks";
 import EmptyState from "@/components/ui/EmptyState";
 
 interface ProductResponse {
@@ -116,6 +117,7 @@ export default function Product() {
   const user = useAppStore((s) => s.user);
   const premiumTier = useAppStore((s) => s.premiumTier);
   const isPro = premiumTier !== "free";
+  const perks = getLevelPerks(user?.level ?? 1);
 
   const { data, error, isLoading } = useSWR(
     id ? `/api/product/${id}` : null,
@@ -130,7 +132,7 @@ export default function Product() {
 
   const rewardedAd = useFullScreenAd(AD_GROUPS.rewarded);
   const { ensureConsent } = usePushConsent();
-  useInterstitialOnView(isPro);
+  useInterstitialOnView(isPro, perks.interstitialEvery);
 
   const product = data?.product;
   const history = useMemo(() => data?.history ?? [], [data]);
@@ -164,7 +166,7 @@ export default function Product() {
   }, [history]);
 
   const analysis = useMemo(() => analyzePriceHistory(history), [history]);
-  const analysisVisible = isPro || analysisUnlocked;
+  const analysisVisible = isPro || analysisUnlocked || perks.freeAiAnalysis;
 
   const handleUnlockAnalysis = () => {
     if (rewardedAd.isSupported) {

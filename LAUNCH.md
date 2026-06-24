@@ -99,6 +99,15 @@ npm run deploy              # = ait deploy (콘솔 API 키 필요)
   - 백엔드: `src/lib/rewards.ts`, `POST /api/feed`·`/api/tips` 응답에 `reward` 포함.
 - 신규 백엔드 API: `/api/ranking`(실시간 월간 집계), `/api/me`(프로필·배지·통계), `/api/me/missions`(오늘의 미션, 실제 완료 상태).
 
+### 레벨 혜택 (EXP 보상 루프, 적용됨)
+EXP를 모아 레벨업하면 실질 혜택이 무료로 해금됩니다 (`lib/level-perks.ts`, 프론트·백엔드 공유):
+| 혜택 | 해금 레벨 |
+|---|---|
+| 추적 슬롯 +1 / +3 / +7 / +12 / +20 | Lv2 / 4 / 6 / 8 / 10 |
+| AI 가격 분석 무료(광고 없이) | Lv5+ |
+| 전면광고 절반 → 없음 | Lv8 → Lv10 |
+- 백엔드 추적 한도(`/api/tracking`)에 레벨 슬롯 보너스 반영. 프로필에 "레벨 혜택" 섹션 + 다음 해금 안내. 레벨업 시 축하 모달(`LevelUpWatcher`).
+
 ## 8. 남은 권장 작업
 
 - 데이터 시드: 초기엔 상품/딜/팁이 비어 있음 — 가격수집 크론(`fetch-prices`)이 products를 채우려면 products에 시드가 필요(검색에서 추적 시작 시 자동 등록 흐름 추가 권장).

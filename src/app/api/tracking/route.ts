@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
+import { getLevelExtraSlots } from '@/lib/level-perks';
 
 export async function GET(req: NextRequest) {
   const session = getAuthUser(req);
@@ -32,8 +33,14 @@ export async function POST(req: NextRequest) {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', session.uid);
 
-  const { data: user } = await supabase.from('users').select('premium_tier').eq('id', session.uid).single();
-  const limit = user?.premium_tier === 'master' ? Infinity : user?.premium_tier === 'pro' ? 50 : 10;
+  const { data: user } = await supabase
+    .from('users')
+    .select('premium_tier, level')
+    .eq('id', session.uid)
+    .single();
+  const base = user?.premium_tier === 'master' ? Infinity : user?.premium_tier === 'pro' ? 50 : 10;
+  // Level perks add free slots on top of the tier base.
+  const limit = base === Infinity ? Infinity : base + getLevelExtraSlots(user?.level ?? 1);
 
   if ((count || 0) >= limit) {
     return NextResponse.json({ error: 'Tracking limit reached', code: 'LIMIT_REACHED' }, { status: 429 });
