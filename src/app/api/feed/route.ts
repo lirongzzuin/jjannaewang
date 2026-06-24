@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { containsBannedWords } from '@/lib/moderation';
+import { getAuthUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   const supabase = createServerClient();
@@ -26,9 +27,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = getAuthUser(req);
+  if (!session) return NextResponse.json({ error: '인증이 필요해요' }, { status: 401 });
+
   const supabase = createServerClient();
   const body = await req.json() as {
-    user_id?: string;
     title?: string;
     description?: string;
     original_price?: number;
@@ -38,10 +41,10 @@ export async function POST(req: NextRequest) {
     product_id?: string;
   };
 
-  const { user_id, title, description, original_price, deal_price, shop_name, shop_url, product_id } = body;
+  const { title, description, original_price, deal_price, shop_name, shop_url, product_id } = body;
 
-  if (!user_id || !title || !shop_name || deal_price === undefined) {
-    return NextResponse.json({ error: 'Missing required fields: user_id, title, shop_name, deal_price' }, { status: 400 });
+  if (!title || !shop_name || deal_price === undefined) {
+    return NextResponse.json({ error: 'Missing required fields: title, shop_name, deal_price' }, { status: 400 });
   }
 
   const trimmedTitle = title.trim();
@@ -66,7 +69,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data, error } = await supabase.from('deal_posts').insert({
-    user_id,
+    user_id: session.uid,
     title: trimmedTitle,
     description: trimmedDesc || null,
     original_price: original_price ?? null,

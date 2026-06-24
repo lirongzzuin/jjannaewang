@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { getRedis, KEYS } from '@/lib/upstash';
 import { containsBannedWords } from '@/lib/moderation';
+import { getAuthUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   const supabase = createServerClient();
@@ -33,10 +34,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = getAuthUser(req);
+  if (!session) return NextResponse.json({ error: '인증이 필요해요' }, { status: 401 });
+
   const supabase = createServerClient();
   const body = await req.json();
-  const { user_id, title, body: postBody, category, tags, link_url, image_urls } = body as {
-    user_id?: string;
+  const { title, body: postBody, category, tags, link_url, image_urls } = body as {
     title?: string;
     body?: string;
     category?: string;
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
   };
 
   // Required field check
-  if (!user_id || !title || !postBody || !category) {
+  if (!title || !postBody || !category) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest) {
   // Rate limiting: 5 tips per user per hour (atomic INCR — no race condition)
   try {
     const redis = getRedis();
-    const rateLimitKey = KEYS.rateLimitTip(user_id);
+    const rateLimitKey = KEYS.rateLimitTip(session.uid);
     const count = await redis.incr(rateLimitKey);
     if (count === 1) {
       // First request in this window — set 1-hour TTL
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data, error } = await supabase.from('tips').insert({
-    user_id,
+    user_id: session.uid,
     title: trimmedTitle,
     body: trimmedBody,
     category,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { getAuthUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createServerClient();
@@ -31,15 +32,18 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
-  const { user_id, body, parent_id } = await req.json();
+  const session = getAuthUser(req);
+  if (!session) return NextResponse.json({ error: '인증이 필요해요' }, { status: 401 });
 
-  if (!user_id || !body) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  const supabase = createServerClient();
+  const { body, parent_id } = await req.json();
+
+  if (!body) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   if (body.length > 500) return NextResponse.json({ error: 'Comment too long' }, { status: 400 });
 
   const { data, error } = await supabase.from('tip_comments').insert({
     tip_id: params.id,
-    user_id,
+    user_id: session.uid,
     body,
     parent_id: parent_id || null,
   }).select('*, user:users(id, nickname, level)').single();

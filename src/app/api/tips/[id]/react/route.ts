@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { getAuthUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
-  const { user_id, type } = await req.json();
+  const session = getAuthUser(req);
+  if (!session) return NextResponse.json({ error: '인증이 필요해요' }, { status: 401 });
 
-  if (!user_id || !type) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  const supabase = createServerClient();
+  const { type } = await req.json();
+
+  if (!type) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
   // Toggle reaction
   const { data: existing } = await supabase
     .from('tip_reactions')
     .select('id')
-    .eq('user_id', user_id)
+    .eq('user_id', session.uid)
     .eq('tip_id', params.id)
     .eq('type', type)
     .single();
@@ -25,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
     return NextResponse.json({ action: 'removed' });
   } else {
-    await supabase.from('tip_reactions').insert({ user_id, tip_id: params.id, type });
+    await supabase.from('tip_reactions').insert({ user_id: session.uid, tip_id: params.id, type });
     if (type === 'upvote') {
       await supabase.rpc('increment_upvote', { tip_id: params.id });
     } else if (type === 'scrap') {

@@ -1,72 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { exchangeTossCode, signSession } from '@/lib/auth';
+
+// CORS + OPTIONS are handled centrally in src/middleware.ts.
 
 /**
  * POST /api/auth/toss
- * Exchange a Toss authorizationCode for user info.
- *
- * In production:
- *   1. Call Toss OAuth token endpoint with authorizationCode
- *   2. Use access token to fetch user profile (userId, nickname, profileImageUrl)
- *   3. Upsert user in DB
- *   4. Return user
- *
- * The Apps-in-Toss OAuth docs: https://docs.toss.im/mini-app/api/auth
+ * Exchange a Toss authorizationCode for a user record + signed session token.
+ * Body: { authorizationCode, referrer? }
+ * Returns: { token, user }
  */
 export async function POST(req: NextRequest) {
-  const { authorizationCode } = await req.json() as { authorizationCode?: string };
+  const { authorizationCode, referrer } = (await req.json().catch(() => ({}))) as {
+    authorizationCode?: string;
+    referrer?: string;
+  };
 
   if (!authorizationCode) {
     return NextResponse.json({ error: 'authorizationCode is required' }, { status: 400 });
   }
 
-  // ── Production: exchange code with Toss ───────────────────────────────────
-  // const tossRes = await fetch('https://api.toss.im/oauth/token', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({
-  //     grant_type: 'authorization_code',
-  //     client_id: process.env.TOSS_CLIENT_ID,
-  //     client_secret: process.env.TOSS_CLIENT_SECRET,
-  //     code: authorizationCode,
-  //   }),
-  // });
-  // const { access_token } = await tossRes.json();
-  //
-  // const profileRes = await fetch('https://api.toss.im/v1/me', {
-  //   headers: { Authorization: `Bearer ${access_token}` },
-  // });
-  // const { userId, nickname, profileImageUrl } = await profileRes.json();
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // ── Dev/mock: derive stable user from code ───────────────────────────────
-  const mockUserId = 'toss-' + authorizationCode.slice(-8);
-  const nickname = '짠내왕유저';
-  // ─────────────────────────────────────────────────────────────────────────
+  let identity;
+  try {
+    identity = await exchangeTossCode(authorizationCode, referrer);
+  } catch (e) {
+    console.error('Toss exchange error:', e);
+    return NextResponse.json({ error: '토스 인증에 실패했어요' }, { status: 401 });
+  }
 
   const supabase = createServerClient();
-
-  // Upsert user record
   const { data: dbUser, error } = await supabase
     .from('users')
-    .upsert({
-      toss_user_id: mockUserId,
-      nickname,
-      last_login_at: new Date().toISOString(),
-    }, { onConflict: 'toss_user_id' })
+    .upsert(
+      {
+        toss_user_id: identity.tossUserId,
+        nickname: identity.nickname || '짠내왕유저',
+        last_login_at: new Date().toISOString(),
+      },
+      { onConflict: 'toss_user_id' },
+    )
     .select()
     .single();
 
-  if (error) {
-    console.error('Auth upsert error:', error.message);
-    return NextResponse.json({ error: 'Failed to create user session' }, { status: 500 });
+  if (error || !dbUser) {
+    console.error('Auth upsert error:', error?.message);
+    return NextResponse.json({ error: '세션 생성에 실패했어요' }, { status: 500 });
   }
 
-  return NextResponse.json({
-    userId: dbUser.id,
-    tossUserId: dbUser.toss_user_id,
-    nickname: dbUser.nickname,
-    level: dbUser.level,
-    premiumTier: dbUser.premium_tier,
-  });
+  // Refresh the daily streak on login (best-effort).
+  try {
+    await supabase.rpc('update_user_streak', { p_user_id: dbUser.id });
+  } catch {
+    /* best-effort */
+  }
+
+  const token = signSession(dbUser.id, dbUser.toss_user_id);
+  return NextResponse.json({ token, user: dbUser });
 }
