@@ -109,9 +109,11 @@ export async function exchangeTossCode(
     return { tossUserId, nickname: data.nickname };
   }
 
-  // Dev/sandbox fallback — deterministic, clearly non-production.
+  // Dev/sandbox fallback — deterministic user key, but NO fixed nickname:
+  // returning a fixed nickname here would make every new user identical.
+  // Leaving it undefined lets /api/auth/toss assign a unique random nickname.
   return {
     tossUserId: 'sandbox-' + authorizationCode.slice(-12),
-    nickname: '짠내왕유저',
+    nickname: undefined,
   };
 }
