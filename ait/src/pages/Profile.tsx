@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { getLevelInfo, getNextLevelExp, formatDate } from '@/lib/utils';
-import { MOCK_USER } from '@/store';
+import { MOCK_USER, useAppStore } from '@/store';
 import { LEVEL_INFO } from '@/types';
 import { share, getTossShareLink, contactsViral } from '@/lib/apps-in-toss';
+import { useAuth } from '@/hooks/useAuth';
 
 const MOCK_BADGES = [
   { code: 'first_track', name: '첫 알림 등록', emoji: '🔔', earned: true },
@@ -222,8 +223,41 @@ export default function Profile() {
         ))}
       </div>
 
+      {/* Auth */}
+      <div className="px-4 pb-6">
+        <AuthRow />
+      </div>
+
       {/* Version */}
       <p className="text-center text-[11px] text-slate-300 pb-4">짠내왕 v{import.meta.env.VITE_APP_VERSION ?? '0.1.0'} · Made with 💛</p>
+    </div>
+  );
+}
+
+function AuthRow() {
+  const storeUser = useAppStore((s) => s.user);
+  const { login, logout, isLoading, error } = useAuth();
+
+  if (storeUser) {
+    return (
+      <button
+        onClick={logout}
+        className="w-full rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-500"
+      >
+        로그아웃
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <button
+        onClick={() => login()}
+        disabled={isLoading}
+        className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-slate-900 disabled:opacity-60"
+      >
+        {isLoading ? '로그인 중...' : '토스로 로그인'}
+      </button>
+      {error && <p className="text-center text-[11px] text-red-500">{error}</p>}
     </div>
   );
 }
