@@ -22,6 +22,33 @@ export const redis = {
   zrange: (...args: Parameters<Redis['zrange']>) => getRedis().zrange(...args),
 };
 
+function redisConfigured(): boolean {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+/**
+ * Cache-aside helper. Reads from Redis; on miss (or no Redis) computes `fn`,
+ * caches it for `ttlSec`, and returns it. Fully graceful — any Redis error
+ * falls back to a direct compute so the request still succeeds.
+ * Prevents read-heavy endpoints (ranking/insights) from full-scanning per call.
+ */
+export async function cached<T>(key: string, ttlSec: number, fn: () => Promise<T>): Promise<T> {
+  if (!redisConfigured()) return fn();
+  try {
+    const hit = await getRedis().get<T>(key);
+    if (hit !== null && hit !== undefined) return hit;
+  } catch {
+    /* fall through to compute */
+  }
+  const value = await fn();
+  try {
+    await getRedis().set(key, value, { ex: ttlSec });
+  } catch {
+    /* ignore cache write failures */
+  }
+  return value;
+}
+
 // Keys
 export const KEYS = {
   savingsRanking: (month: string) => `ranking:savings:${month}`,

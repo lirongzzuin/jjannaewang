@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
+import { cached } from '@/lib/upstash';
 
 function currentMonth(): string {
   const d = new Date();
@@ -16,8 +17,15 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient();
   const month = currentMonth();
 
-  const [{ data: monthSavings }, { data: user }, { data: trackings }] = await Promise.all([
-    supabase.from('savings').select('user_id, saved_amount').eq('month', month),
+  // Month-wide savings are shared across users → cache the aggregation (60s) so
+  // every Home visit doesn't re-scan the savings table.
+  const [totalsArr, { data: user }, { data: trackings }] = await Promise.all([
+    cached<[string, number][]>(`insights:savings:${month}`, 60, async () => {
+      const { data } = await supabase.from('savings').select('user_id, saved_amount').eq('month', month);
+      const agg = new Map<string, number>();
+      for (const s of data ?? []) agg.set(s.user_id, (agg.get(s.user_id) ?? 0) + (s.saved_amount ?? 0));
+      return Array.from(agg.entries());
+    }),
     supabase.from('users').select('total_saved_amount, streak_days, level').eq('id', session.uid).single(),
     supabase
       .from('user_trackings')
@@ -25,11 +33,7 @@ export async function GET(req: NextRequest) {
       .eq('user_id', session.uid),
   ]);
 
-  // Aggregate this month's savings per user.
-  const totals = new Map<string, number>();
-  for (const s of monthSavings ?? []) {
-    totals.set(s.user_id, (totals.get(s.user_id) ?? 0) + (s.saved_amount ?? 0));
-  }
+  const totals = new Map<string, number>(totalsArr);
   const myMonth = totals.get(session.uid) ?? 0;
   const peerValues = Array.from(totals.values());
   const peerCount = peerValues.length;

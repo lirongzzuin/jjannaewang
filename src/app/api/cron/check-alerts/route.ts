@@ -15,6 +15,10 @@ export async function GET(req: NextRequest) {
   }
   const supabase = createServerClient();
 
+  // Only consider alert-enabled trackings with a target whose cooldown has
+  // elapsed (or never alerted), and cap the batch so one run never loads the
+  // entire table into memory. Consenting users only (others can't be notified).
+  const cooldownCutoff = new Date(Date.now() - RE_ALERT_COOLDOWN_MS).toISOString();
   const { data: trackings, error } = await supabase
     .from('user_trackings')
     .select(
@@ -23,7 +27,11 @@ export async function GET(req: NextRequest) {
         'product:products!inner(id, name, current_lowest_price, current_lowest_shop)',
     )
     .eq('alert_enabled', true)
-    .not('target_price', 'is', null);
+    .eq('user.notification_consent', true)
+    .not('target_price', 'is', null)
+    .or(`last_alerted_at.is.null,last_alerted_at.lt.${cooldownCutoff}`)
+    .order('last_alerted_at', { ascending: true, nullsFirst: true })
+    .limit(500);
 
   if (error) {
     console.error('check-alerts query error:', error.message);

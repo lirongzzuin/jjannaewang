@@ -80,17 +80,28 @@ export async function POST(req: NextRequest) {
       .eq('id', product.id);
   }
 
-  // Seed a price-history point (best-effort) so charts have real data over time.
+  // Seed a price-history point — but DEDUPE: skip if there's already a recent
+  // row for this product. Without this, a popular product viewed N times/day
+  // would insert N near-duplicate rows (price_history overload). The cron owns
+  // the regular cadence; this is just to bootstrap newly-seen products.
   if (product && price != null) {
-    await supabase
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { count } = await supabase
       .from('price_history')
-      .insert({
-        product_id: product.id,
-        shop_name: body.shop ?? '네이버',
-        price,
-        affiliate_url: null,
-      })
-      .then(undefined, () => {});
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', product.id)
+      .gte('recorded_at', sixHoursAgo);
+    if ((count ?? 0) === 0) {
+      await supabase
+        .from('price_history')
+        .insert({
+          product_id: product.id,
+          shop_name: body.shop ?? '네이버',
+          price,
+          affiliate_url: null,
+        })
+        .then(undefined, () => {});
+    }
   }
 
   return NextResponse.json({ product });
