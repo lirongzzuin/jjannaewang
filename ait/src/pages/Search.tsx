@@ -6,14 +6,23 @@ import { Product } from "@/types";
 import ProductCard from "@/components/product/ProductCard";
 import EmptyState from "@/components/ui/EmptyState";
 
-const CATEGORIES = ['생수', '기저귀', '라면', '세제', '화장지', '커피', '샴푸', '치약', '밀키트', '과자'];
+// 인기 검색어 — 누르면 그 키워드로 바로 검색합니다(클라이언트 필터 아님).
+const KEYWORDS = ['생수', '기저귀', '라면', '세제', '화장지', '커피', '샴푸', '치약', '밀키트', '과자'];
 
 export default function Search() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const trimmed = query.trim();
+
+  const { data, isLoading } = useSWR(
+    trimmed ? `/api/search?q=${encodeURIComponent(trimmed)}` : null,
+    (path) => api.get<{ products: Product[]; total: number }>(path),
+  );
+
+  const products = data?.products ?? [];
 
   // Persist a Naver search result into our DB and return the internal product.
   const resolveProduct = async (p: Product): Promise<Product> => {
@@ -35,40 +44,16 @@ export default function Search() {
       const internal = await resolveProduct(p);
       navigate(`/product/${internal.id}`);
     } catch {
-      // Fallback: still try to navigate (detail will show a not-found state).
       navigate(`/product/${p.id}`);
     } finally {
       setBusyId(null);
     }
   };
 
-  const trimmed = query.trim();
-
-  const { data, isLoading } = useSWR(
-    trimmed ? `/api/search?q=${encodeURIComponent(trimmed)}` : null,
-    (path) => api.get<{ products: Product[]; total: number }>(path),
-  );
-
-  const products = data?.products ?? [];
-  const filtered = selectedCategory
-    ? products.filter((p) => p.category === selectedCategory)
-    : products;
-
-  const handleChip = (cat: string) => {
-    if (cat === selectedCategory) {
-      setSelectedCategory('');
-      return;
-    }
-    setSelectedCategory(cat);
-    // Tapping a chip seeds the query when the input is still empty.
-    if (!trimmed) setQuery(cat);
-  };
-
   const toggleTrack = async (naverId: string) => {
     const product = products.find((p) => p.id === naverId);
     if (!product) return;
     const wasTracked = trackedIds.has(naverId);
-    // Optimistic toggle (keyed on the search-result id).
     setTrackedIds((prev) => {
       const next = new Set(prev);
       if (wasTracked) next.delete(naverId);
@@ -76,22 +61,18 @@ export default function Search() {
       return next;
     });
     try {
-      // Resolve to the internal DB product (real data) before tracking.
       const internal = await resolveProduct(product);
-      if (wasTracked) {
-        await api.del("/api/tracking", { product_id: internal.id });
-      } else {
-        await api.post("/api/tracking", { product_id: internal.id });
-      }
+      if (wasTracked) await api.del("/api/tracking", { product_id: internal.id });
+      else await api.post("/api/tracking", { product_id: internal.id });
     } catch (err) {
-      // Revert on failure.
       setTrackedIds((prev) => {
         const next = new Set(prev);
         if (wasTracked) next.add(naverId);
         else next.delete(naverId);
         return next;
       });
-      if (err instanceof ApiError && err.status === 401) alert("토스 계정 연결 중이에요. 잠시 후 다시 시도해주세요.");
+      if (err instanceof ApiError && err.status === 401)
+        alert("토스 계정 연결 중이에요. 잠시 후 다시 시도해주세요.");
       else if (err instanceof ApiError && err.status === 429)
         alert("추적 슬롯이 가득 찼어요. 광고를 보거나 레벨을 올려 늘려보세요!");
     }
@@ -111,7 +92,7 @@ export default function Search() {
               type="text"
               placeholder="상품명, 브랜드 검색"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none font-medium"
               autoFocus
             />
@@ -122,25 +103,17 @@ export default function Search() {
             )}
           </div>
         </div>
-        {/* Category chips */}
+        {/* 인기 검색어 — 누르면 해당 키워드로 검색 */}
         <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setSelectedCategory('')}
-            className={`flex-none px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-              !selectedCategory ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            전체
-          </button>
-          {CATEGORIES.map(cat => (
+          {KEYWORDS.map((kw) => (
             <button
-              key={cat}
-              onClick={() => handleChip(cat)}
+              key={kw}
+              onClick={() => setQuery(kw)}
               className={`flex-none px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                cat === selectedCategory ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'
+                trimmed === kw ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'
               }`}
             >
-              {cat}
+              {kw}
             </button>
           ))}
         </div>
@@ -156,7 +129,7 @@ export default function Search() {
         <div className="flex items-center justify-center py-20">
           <span className="material-symbols-outlined animate-spin text-4xl text-slate-300">progress_activity</span>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : products.length === 0 ? (
         <EmptyState
           icon="search_off"
           title="검색 결과가 없어요"
@@ -167,13 +140,13 @@ export default function Search() {
           {/* Results count */}
           <div className="px-4 py-2 bg-white border-b border-slate-100">
             <p className="text-xs text-slate-500 font-medium">
-              {filtered.length}개 상품 <span className="text-primary font-bold">&ldquo;{trimmed}&rdquo;</span>
+              {products.length}개 상품 <span className="text-primary font-bold">&ldquo;{trimmed}&rdquo;</span>
             </p>
           </div>
 
           {/* Product list */}
           <div className="bg-white">
-            {filtered.map((product) => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
