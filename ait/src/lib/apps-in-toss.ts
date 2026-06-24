@@ -60,12 +60,37 @@ const USE_MOCK = !isTossApp();
 /**
  * Initiate Toss login. Returns { authorizationCode, referrer }.
  * Exchange `authorizationCode` server-side (POST /api/auth/toss) for user info.
+ *
+ * Robustness: we ALWAYS try the real SDK first (don't gate on ad-support
+ * detection, which can be false on some Toss versions). Only a thrown error
+ * (i.e. not running inside Toss) falls back to a stable per-device mock so the
+ * dev/sandbox account stays consistent across reloads.
  */
 export async function appLogin(): Promise<LoginResult> {
-  if (!USE_MOCK && typeof AIT.appLogin === "function") {
-    return AIT.appLogin() as Promise<LoginResult>;
+  if (typeof AIT.appLogin === "function") {
+    try {
+      const result = (await AIT.appLogin()) as LoginResult;
+      if (result?.authorizationCode) return result;
+    } catch {
+      /* not in the Toss runtime → mock below */
+    }
   }
-  return { authorizationCode: "mock-auth-code-" + Date.now(), referrer: "SANDBOX" };
+  return { authorizationCode: stableMockCode(), referrer: "SANDBOX" };
+}
+
+// Stable mock auth code per device (browser dev / non-Toss) so the sandbox user
+// maps to the same account on every reload — makes account linking testable.
+function stableMockCode(): string {
+  try {
+    let c = localStorage.getItem("jjannaewang-mock-auth");
+    if (!c) {
+      c = "mockdev-" + Math.random().toString(36).slice(2, 14);
+      localStorage.setItem("jjannaewang-mock-auth", c);
+    }
+    return c;
+  } catch {
+    return "mockdev-fixed-000000";
+  }
 }
 
 // ─── IAP ────────────────────────────────────────────────────────────────────
