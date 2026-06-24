@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store";
 import { containsBannedWords } from "@/lib/moderation";
+import RewardCelebration, { type PioneerReward } from "@/components/ui/RewardCelebration";
+import { haptic } from "@/lib/apps-in-toss";
 
 export default function FeedWrite() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function FeedWrite() {
   const [shopUrl, setShopUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reward, setReward] = useState<PioneerReward | null>(null);
 
   const canSubmit =
     title.trim().length >= 3 && dealPrice.trim() !== "" && shopName.trim() !== "" && !submitting;
@@ -32,8 +35,7 @@ export default function FeedWrite() {
     }
     setSubmitting(true);
     try {
-      await api.post("/api/feed", {
-        user_id: user.id,
+      const res = await api.post<{ reward: PioneerReward | null }>("/api/feed", {
         title: title.trim(),
         description: description.trim() || null,
         deal_price: Number(dealPrice),
@@ -41,7 +43,12 @@ export default function FeedWrite() {
         shop_name: shopName.trim(),
         shop_url: shopUrl.trim() || null,
       });
-      navigate("/feed", { replace: true });
+      if (res.reward) {
+        haptic("softMedium");
+        setReward(res.reward); // celebrate, then navigate on close
+      } else {
+        navigate("/feed", { replace: true });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "등록에 실패했어요");
       setSubmitting(false);
@@ -126,6 +133,10 @@ export default function FeedWrite() {
           허위·과장 정보나 광고성 게시물은 신고 5회 시 자동으로 가려집니다.
         </p>
       </div>
+
+      {reward && (
+        <RewardCelebration reward={reward} onClose={() => navigate("/feed", { replace: true })} />
+      )}
     </div>
   );
 }

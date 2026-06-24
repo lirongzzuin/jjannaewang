@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { containsBannedWords } from '@/lib/moderation';
 import { getAuthUser } from '@/lib/auth';
+import { awardPioneer } from '@/lib/rewards';
 
 export async function GET(req: NextRequest) {
   const supabase = createServerClient();
@@ -83,5 +84,22 @@ export async function POST(req: NextRequest) {
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ deal: data }, { status: 201 });
+
+  // Pioneer reward — first reporter for this product (or first deal ever if free-form).
+  let reward = null;
+  if (product_id) {
+    const { count } = await supabase
+      .from('deal_posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('product_id', product_id);
+    if ((count ?? 0) <= 1) reward = await awardPioneer(supabase, session.uid, 'deal');
+  } else {
+    const { count } = await supabase
+      .from('deal_posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', session.uid);
+    if ((count ?? 0) <= 1) reward = await awardPioneer(supabase, session.uid, 'deal');
+  }
+
+  return NextResponse.json({ deal: data, reward }, { status: 201 });
 }

@@ -3,14 +3,14 @@ import { createServerClient } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  const supabase = createServerClient();
-  const user_id = req.nextUrl.searchParams.get('user_id');
-  if (!user_id) return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+  const session = getAuthUser(req);
+  if (!session) return NextResponse.json({ error: '인증이 필요해요' }, { status: 401 });
 
+  const supabase = createServerClient();
   const { data, error } = await supabase
     .from('user_trackings')
     .select('*, product:products(*)')
-    .eq('user_id', user_id)
+    .eq('user_id', session.uid)
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

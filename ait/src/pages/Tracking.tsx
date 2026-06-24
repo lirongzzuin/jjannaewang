@@ -1,20 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import useSWR from "swr";
 import { formatPrice } from "@/lib/utils";
-import MiniSparkline from "@/components/charts/MiniSparkline";
+import { api, ApiError } from "@/lib/api";
+import { UserTracking } from "@/types";
+import { useAppStore } from "@/store";
+import EmptyState from "@/components/ui/EmptyState";
 import { useFullScreenAd } from "@/hooks/useFullScreenAd";
 import { usePushConsent } from "@/hooks/usePushConsent";
 import { AD_GROUPS } from "@/lib/ads";
 import { haptic, requestReview } from "@/lib/apps-in-toss";
-import { useEffect, useRef } from "react";
-
-const MOCK_TRACKINGS = [
-  { id: "t1", productId: "p2", name: "하기스 매직팬티 여아 4단계 52매", brand: "하기스", image: "https://images.unsplash.com/photo-1522771930-78848d9293e8?w=200", currentPrice: 31500, targetPrice: 28900, lowestEver: 28900, shop: "네이버스토어", alertEnabled: true, sparkline: [35000, 33500, 32000, 32500, 31800, 31500], change: -1800, status: "dropping" },
-  { id: "t2", productId: "p6", name: "맥심 모카골드 커피믹스 100개입", brand: "동서식품", image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200", currentPrice: 14800, targetPrice: 12500, lowestEver: 12500, shop: "쿠팡", alertEnabled: true, sparkline: [17000, 16500, 15500, 15000, 14800, 14800], change: -200, status: "dropping" },
-  { id: "t3", productId: "p3", name: "신라면 120g x 20개", brand: "농심", image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=200", currentPrice: 13200, targetPrice: 11500, lowestEver: 11500, shop: "쿠팡", alertEnabled: false, sparkline: [15000, 14500, 14000, 13500, 13200, 13200], change: -300, status: "stable" },
-  { id: "t4", productId: "p5", name: "크리넥스 3겹 화장지 30롤", brand: "크리넥스", image: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=200", currentPrice: 21000, targetPrice: 18900, lowestEver: 18900, shop: "이마트몰", alertEnabled: true, sparkline: [24000, 23000, 22000, 21500, 21000, 21000], change: -1000, status: "dropping" },
-  { id: "t5", productId: "p1", name: "삼다수 2L x 12개", brand: "삼다수", image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200", currentPrice: 7900, targetPrice: 7500, lowestEver: 7900, shop: "쿠팡", alertEnabled: true, sparkline: [9500, 9200, 9000, 8900, 8200, 7900], change: -1000, status: "target_met" },
-];
 
 const FILTER_TABS = [
   { id: "all", label: "전체" },
@@ -26,22 +21,33 @@ const FILTER_TABS = [
 const TOTAL_SLOTS = 10;
 const PRO_SLOTS = 50;
 
+// A tracking has met its target when the current lowest price is at/under target.
+function isTargetMet(t: UserTracking): boolean {
+  const price = t.product?.current_lowest_price;
+  return price != null && t.target_price != null && price <= t.target_price;
+}
+
 export default function Tracking() {
+  const user = useAppStore((s) => s.user);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [alerts, setAlerts] = useState<Record<string, boolean>>(
-    Object.fromEntries(MOCK_TRACKINGS.map((t) => [t.id, t.alertEnabled])),
-  );
-  const [trackings, setTrackings] = useState(MOCK_TRACKINGS);
   const [adSlotBonus, setAdSlotBonus] = useState(0);
 
   const rewardedAd = useFullScreenAd(AD_GROUPS.rewarded);
   const { ensureConsent } = usePushConsent();
   const reviewAsked = useRef(false);
 
+  const { data, error, isLoading, mutate } = useSWR(
+    user ? "/api/tracking" : null,
+    () => api.get<{ trackings: UserTracking[] }>("/api/tracking"),
+  );
+
+  const trackings = data?.trackings ?? [];
+  const unauthorized = !user || (error instanceof ApiError && error.status === 401);
+
   // Ask for a store review once, at a high-satisfaction moment (a target is met).
   useEffect(() => {
     if (reviewAsked.current) return;
-    if (trackings.some((t) => t.currentPrice <= t.targetPrice)) {
+    if (trackings.some(isTargetMet)) {
       reviewAsked.current = true;
       requestReview();
     }
@@ -49,19 +55,57 @@ export default function Tracking() {
 
   const filtered = trackings.filter((t) => {
     if (activeFilter === "all") return true;
-    if (activeFilter === "dropping") return t.status === "dropping";
-    if (activeFilter === "target_met") return t.status === "target_met";
-    if (activeFilter === "alert_off") return !alerts[t.id];
+    if (activeFilter === "dropping") return !isTargetMet(t);
+    if (activeFilter === "target_met") return isTargetMet(t);
+    if (activeFilter === "alert_off") return !t.alert_enabled;
     return true;
   });
 
-  const removeTracking = (id: string) => setTrackings((prev) => prev.filter((t) => t.id !== id));
-  const toggleAlert = async (id: string) => {
-    const turningOn = !alerts[id];
-    setAlerts((prev) => ({ ...prev, [id]: turningOn }));
-    if (turningOn) {
+  const tabCount = (tabId: string) =>
+    trackings.filter((t) =>
+      tabId === "dropping"
+        ? !isTargetMet(t)
+        : tabId === "target_met"
+          ? isTargetMet(t)
+          : !t.alert_enabled,
+    ).length;
+
+  const removeTracking = async (productId: string) => {
+    // Optimistic removal.
+    mutate(
+      (prev) =>
+        prev ? { trackings: prev.trackings.filter((t) => t.product_id !== productId) } : prev,
+      { revalidate: false },
+    );
+    try {
+      await api.del("/api/tracking", { product_id: productId });
+    } finally {
+      mutate();
+    }
+  };
+
+  const toggleAlert = async (trackingId: string, current: boolean) => {
+    const next = !current;
+    if (next) {
       haptic("tick");
       await ensureConsent(); // ensure push consent so alerts can be delivered
+    }
+    // Optimistic toggle.
+    mutate(
+      (prev) =>
+        prev
+          ? {
+              trackings: prev.trackings.map((t) =>
+                t.id === trackingId ? { ...t, alert_enabled: next } : t,
+              ),
+            }
+          : prev,
+      { revalidate: false },
+    );
+    try {
+      await api.post("/api/alert", { tracking_id: trackingId, alert_enabled: next });
+    } catch {
+      mutate(); // revalidate to revert on failure
     }
   };
 
@@ -112,146 +156,156 @@ export default function Tracking() {
               }`}
             >
               {tab.label}
-              {tab.id !== "all" && (
-                <span className="ml-1 text-[10px]">
-                  (
-                  {
-                    trackings.filter((t) =>
-                      tab.id === "dropping"
-                        ? t.status === "dropping"
-                        : tab.id === "target_met"
-                          ? t.status === "target_met"
-                          : !alerts[t.id],
-                    ).length
-                  }
-                  )
-                </span>
-              )}
+              {tab.id !== "all" && <span className="ml-1 text-[10px]">({tabCount(tab.id)})</span>}
             </button>
           ))}
         </div>
       </header>
 
       <div className="space-y-3 p-4">
-        {filtered.map((item) => {
-          const progressToTarget = item.targetPrice
-            ? Math.max(
-                0,
-                Math.min(
-                  100,
-                  ((item.currentPrice - item.targetPrice) /
-                    (item.sparkline[0] - item.targetPrice)) *
-                    100,
-                ),
-              )
-            : 0;
-          const targetMet = item.currentPrice <= item.targetPrice;
-
-          return (
-            <div
-              key={item.id}
-              className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
-            >
-              {targetMet && (
-                <div className="flex items-center gap-2 bg-green-500 px-4 py-1.5">
-                  <span className="material-symbols-outlined fill-icon text-[16px] text-white">
-                    check_circle
-                  </span>
-                  <span className="text-xs font-bold text-white">목표가 달성! 지금 구매하세요</span>
-                </div>
-              )}
-              <div className="p-4">
-                <div className="flex items-start gap-3">
-                  <Link to={`/product/${item.productId}`}>
-                    <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
-                      <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-                    </div>
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold text-slate-400">{item.brand}</p>
-                        <Link to={`/product/${item.productId}`}>
-                          <p className="line-clamp-2 text-sm font-bold leading-snug text-slate-800 transition-colors hover:text-primary">
-                            {item.name}
-                          </p>
-                        </Link>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          onClick={() => toggleAlert(item.id)}
-                          className={`rounded-lg p-1.5 transition-colors ${
-                            alerts[item.id]
-                              ? "bg-primary/10 text-primary"
-                              : "bg-slate-100 text-slate-400"
-                          }`}
-                        >
-                          <span
-                            className={`material-symbols-outlined text-[18px] ${alerts[item.id] ? "fill-icon" : ""}`}
-                          >
-                            {alerts[item.id] ? "notifications_active" : "notifications_off"}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => removeTracking(item.id)}
-                          className="rounded-lg bg-slate-100 p-1.5 text-slate-400 transition-colors hover:text-red-400"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            delete_outline
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span
-                        className={`text-lg font-extrabold ${targetMet ? "text-green-600" : "text-primary"}`}
-                      >
-                        {formatPrice(item.currentPrice)}
-                      </span>
-                      <span className="text-xs font-bold text-green-600">
-                        {item.change < 0
-                          ? `▼ ${formatPrice(Math.abs(item.change))}`
-                          : `▲ ${formatPrice(item.change)}`}
-                      </span>
-                    </div>
-                  </div>
-                  <MiniSparkline data={item.sparkline} width={56} height={28} />
-                </div>
-
-                {item.targetPrice && (
-                  <div className="mt-3">
-                    <div className="mb-1 flex justify-between text-[10px] text-slate-400">
-                      <span>현재 {formatPrice(item.currentPrice)}</span>
-                      <span>목표 {formatPrice(item.targetPrice)}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full transition-all ${targetMet ? "bg-green-500" : "bg-primary"}`}
-                        style={{ width: `${Math.max(5, 100 - progressToTarget)}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      {targetMet
-                        ? "목표가 달성됐어요!"
-                        : `목표까지 ${formatPrice(item.currentPrice - item.targetPrice)} 남았어요`}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-300">
-            <span className="material-symbols-outlined mb-3 text-6xl">inventory_2</span>
-            <p className="text-sm font-medium text-slate-400">추적 중인 상품이 없어요</p>
-            <Link to="/search">
-              <button className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white">
-                상품 검색하기
-              </button>
-            </Link>
+        {unauthorized ? (
+          <EmptyState
+            icon="lock"
+            title="로그인이 필요해요"
+            description="토스로 로그인하고 관심 상품을 추적해보세요"
+            ctaLabel="로그인하러 가기"
+            ctaTo="/profile"
+          />
+        ) : isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <span className="material-symbols-outlined animate-spin text-4xl text-slate-300">progress_activity</span>
           </div>
+        ) : trackings.length === 0 ? (
+          <EmptyState
+            icon="inventory_2"
+            title="추적 중인 상품이 없어요"
+            description="상품을 검색해 가격을 추적하면 목표가 도달 시 알려드려요"
+            ctaLabel="상품 검색하기"
+            ctaTo="/search"
+          />
+        ) : (
+          <>
+            {filtered.map((item) => {
+              const product = item.product;
+              const current = product?.current_lowest_price ?? null;
+              const target = item.target_price;
+              const targetMet = isTargetMet(item);
+              const progressPct =
+                current != null && current > 0 && target != null
+                  ? Math.min(100, Math.round((target / current) * 100))
+                  : 0;
+
+              return (
+                <div
+                  key={item.id}
+                  className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
+                >
+                  {targetMet && (
+                    <div className="flex items-center gap-2 bg-green-500 px-4 py-1.5">
+                      <span className="material-symbols-outlined fill-icon text-[16px] text-white">
+                        check_circle
+                      </span>
+                      <span className="text-xs font-bold text-white">목표가 달성! 지금 구매하세요</span>
+                    </div>
+                  )}
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Link to={`/product/${item.product_id}`}>
+                        <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                          {product?.image_url ? (
+                            <img
+                              src={product.image_url}
+                              alt={product?.name ?? ""}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <span className="material-symbols-outlined text-2xl text-slate-300">image</span>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-semibold text-slate-400">
+                              {product?.brand ?? product?.category ?? ""}
+                            </p>
+                            <Link to={`/product/${item.product_id}`}>
+                              <p className="line-clamp-2 text-sm font-bold leading-snug text-slate-800 transition-colors hover:text-primary">
+                                {product?.name ?? "상품"}
+                              </p>
+                            </Link>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              onClick={() => toggleAlert(item.id, item.alert_enabled)}
+                              className={`rounded-lg p-1.5 transition-colors ${
+                                item.alert_enabled
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-slate-100 text-slate-400"
+                              }`}
+                            >
+                              <span
+                                className={`material-symbols-outlined text-[18px] ${item.alert_enabled ? "fill-icon" : ""}`}
+                              >
+                                {item.alert_enabled ? "notifications_active" : "notifications_off"}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => removeTracking(item.product_id)}
+                              className="rounded-lg bg-slate-100 p-1.5 text-slate-400 transition-colors hover:text-red-400"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                delete_outline
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span
+                            className={`text-lg font-extrabold ${targetMet ? "text-green-600" : "text-primary"}`}
+                          >
+                            {current != null ? formatPrice(current) : "가격 확인 중"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {target != null && (
+                      <div className="mt-3">
+                        <div className="mb-1 flex justify-between text-[10px] text-slate-400">
+                          <span>현재 {current != null ? formatPrice(current) : "-"}</span>
+                          <span>목표 {formatPrice(target)}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all ${targetMet ? "bg-green-500" : "bg-primary"}`}
+                            style={{ width: `${Math.max(5, progressPct)}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          {targetMet
+                            ? "목표가 달성됐어요!"
+                            : current != null
+                              ? `목표까지 ${formatPrice(current - target)} 남았어요`
+                              : "가격 정보를 기다리고 있어요"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filtered.length === 0 && (
+              <EmptyState
+                icon="filter_list_off"
+                title="해당하는 상품이 없어요"
+                description="다른 필터를 선택해보세요"
+              />
+            )}
+          </>
         )}
 
         <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 p-5 text-white">

@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
+import useSWR from 'swr';
 import { formatPrice, getLevelInfo, formatMonth, getCurrentMonth } from '@/lib/utils';
 import { RankingEntry } from '@/types';
-import { MOCK_USER } from '@/store';
+import { api } from '@/lib/api';
+import EmptyState from '@/components/ui/EmptyState';
 
 const RANKING_TABS = [
   { id: 'savings', label: '절약왕', emoji: '💰', unit: '절약금액' },
@@ -9,35 +11,12 @@ const RANKING_TABS = [
   { id: 'tips', label: '꿀팁왕', emoji: '🍯', unit: '좋아요' },
 ];
 
-const MOCK_SAVINGS_RANKING: RankingEntry[] = [
-  { rank: 1, user: { ...MOCK_USER, id: 'r1', nickname: '짠내왕킹', level: 10, total_saved_amount: 3240000 }, score: 3240000 },
-  { rank: 2, user: { ...MOCK_USER, id: 'r2', nickname: '절약고수A', level: 9, total_saved_amount: 2890000 }, score: 2890000 },
-  { rank: 3, user: { ...MOCK_USER, id: 'r3', nickname: '거지대공', level: 9, total_saved_amount: 2650000 }, score: 2650000 },
-  { rank: 4, user: { ...MOCK_USER, id: 'r4', nickname: '절약왕B', level: 8, total_saved_amount: 2310000 }, score: 2310000 },
-  { rank: 5, user: { ...MOCK_USER, id: 'r5', nickname: '짠테크교수', level: 8, total_saved_amount: 2100000 }, score: 2100000 },
-  { rank: 6, user: { ...MOCK_USER, id: 'r6', nickname: '쿠폰마스터', level: 7, total_saved_amount: 1980000 }, score: 1980000 },
-  { rank: 7, user: { ...MOCK_USER, id: 'r7', nickname: '특가헌터', level: 7, total_saved_amount: 1750000 }, score: 1750000 },
-  { rank: 8, user: { ...MOCK_USER, id: 'r8', nickname: '절약달인', level: 6, total_saved_amount: 1560000 }, score: 1560000 },
-  { rank: 9, user: { ...MOCK_USER, id: 'r9', nickname: '짠순이', level: 6, total_saved_amount: 1340000 }, score: 1340000 },
-  { rank: 10, user: { ...MOCK_USER, id: 'r10', nickname: '절약초보', level: 5, total_saved_amount: 1200000 }, score: 1200000, isMe: true },
-];
-
-const MOCK_DEALS_RANKING: RankingEntry[] = [
-  { rank: 1, user: { ...MOCK_USER, id: 'r11', nickname: '딜헌터킹', level: 9 }, score: 89 },
-  { rank: 2, user: { ...MOCK_USER, id: 'r12', nickname: '특가마왕', level: 8 }, score: 72 },
-  { rank: 3, user: { ...MOCK_USER, id: 'r13', nickname: '제보전사', level: 8 }, score: 65 },
-  { rank: 4, user: { ...MOCK_USER, id: 'r14', nickname: '특가탐정', level: 7 }, score: 54 },
-  { rank: 5, user: { ...MOCK_USER, id: 'r15', nickname: '딜발굴러', level: 7 }, score: 48 },
-  { rank: 6, user: { ...MOCK_USER, id: 'u1', nickname: '짠내왕유저', level: 5 }, score: 12, isMe: true },
-];
-
-const MOCK_TIPS_RANKING: RankingEntry[] = [
-  { rank: 1, user: { ...MOCK_USER, id: 'r21', nickname: '꿀팁마스터', level: 10 }, score: 12450 },
-  { rank: 2, user: { ...MOCK_USER, id: 'r22', nickname: '절약교수', level: 9 }, score: 9820 },
-  { rank: 3, user: { ...MOCK_USER, id: 'r23', nickname: '짠테크박사', level: 8 }, score: 7650 },
-  { rank: 4, user: { ...MOCK_USER, id: 'r24', nickname: '꿀정보왕', level: 8 }, score: 6230 },
-  { rank: 5, user: { ...MOCK_USER, id: 'r25', nickname: '정보공유러', level: 7 }, score: 5100 },
-];
+interface RankingResponse {
+  type: string;
+  month: string;
+  rankings: RankingEntry[];
+  me: RankingEntry | null;
+}
 
 function getDaysRemainingInMonth(): number {
   const now = new Date();
@@ -83,13 +62,18 @@ export default function Ranking() {
   const season = useMemo(() => formatMonth(getCurrentMonth()), []);
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
 
-  const rankings = activeTab === 'savings' ? MOCK_SAVINGS_RANKING
-    : activeTab === 'deals' ? MOCK_DEALS_RANKING
-    : MOCK_TIPS_RANKING;
+  const { data, error, isLoading } = useSWR(
+    ['ranking', activeTab],
+    () => api.get<RankingResponse>(`/api/ranking?type=${activeTab}`)
+  );
+
+  const rankings = data?.rankings ?? [];
+  const me = data?.me ?? null;
 
   const top3 = rankings.slice(0, 3);
   const rest = rankings.slice(3);
-  const myEntry = rankings.find(r => r.isMe);
+
+  const nextRankEntry = me ? rankings.find(r => r.rank === me.rank - 1) ?? null : null;
 
   return (
     <div className="min-h-screen bg-background-light">
@@ -124,83 +108,111 @@ export default function Ranking() {
         </div>
       </header>
 
-      {/* Podium */}
-      <div className="bg-white py-6 mb-3">
-        <div className="flex items-end justify-center gap-3 px-6">
-          {top3[1] && <PodiumCard entry={top3[1]} position={2} />}
-          {top3[0] && <PodiumCard entry={top3[0]} position={1} />}
-          {top3[2] && <PodiumCard entry={top3[2]} position={3} />}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <span className="material-symbols-outlined animate-spin text-4xl text-slate-300">progress_activity</span>
         </div>
-        {/* Top 3 scores */}
-        <div className="flex justify-center gap-3 mt-4 px-6">
-          {[top3[1], top3[0], top3[2]].filter(Boolean).map((entry, i) => (
-            <div key={i} className="flex-1 text-center">
-              <p className="text-[10px] text-slate-400">{formatScore(entry.score, activeTab)}</p>
+      ) : error ? (
+        <EmptyState
+          icon="error"
+          title="랭킹을 불러오지 못했어요"
+          description="잠시 후 다시 시도해주세요."
+        />
+      ) : rankings.length === 0 ? (
+        <EmptyState
+          icon="trophy"
+          title="아직 이달의 랭킹이 없어요"
+          description="가장 먼저 절약하고 제보하고 꿀팁을 남겨 1등에 도전해보세요!"
+        />
+      ) : (
+        <>
+          {/* Podium */}
+          <div className="bg-white py-6 mb-3">
+            <div className="flex items-end justify-center gap-3 px-6">
+              {top3[1] && <PodiumCard entry={top3[1]} position={2} />}
+              {top3[0] && <PodiumCard entry={top3[0]} position={1} />}
+              {top3[2] && <PodiumCard entry={top3[2]} position={3} />}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Rankings 4+ */}
-      <div className="bg-white mx-0 mb-24">
-        {rest.map((entry) => {
-          const levelInfo = getLevelInfo(entry.user.level);
-          return (
-            <div
-              key={entry.user.id}
-              className={`flex items-center gap-3 px-4 py-3.5 border-b border-slate-50 ${entry.isMe ? 'bg-primary/5' : ''}`}
-            >
-              <div className="w-7 text-center">
-                <span className={`text-sm font-extrabold ${entry.isMe ? 'text-primary' : 'text-slate-400'}`}>
-                  {entry.rank}
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg border-2 border-slate-200">
-                {levelInfo.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className={`text-sm font-bold ${entry.isMe ? 'text-primary' : 'text-slate-900'} truncate`}>
-                    {entry.user.nickname}
-                  </p>
-                  {entry.isMe && (
-                    <span className="text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full">나</span>
-                  )}
+            {/* Top 3 scores */}
+            <div className="flex justify-center gap-3 mt-4 px-6">
+              {[top3[1], top3[0], top3[2]].filter(Boolean).map((entry, i) => (
+                <div key={i} className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400">{formatScore(entry.score, activeTab)}</p>
                 </div>
-                <p className="text-[11px] text-slate-400">Lv.{entry.user.level} {getLevelInfo(entry.user.level).title}</p>
-              </div>
-              <p className={`text-sm font-bold ${entry.isMe ? 'text-primary' : 'text-slate-700'}`}>
-                {formatScore(entry.score, activeTab)}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* My rank sticky footer */}
-      {myEntry && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 z-20">
-          <div className="bg-slate-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
-            <div className="w-8 text-center">
-              <span className="text-sm font-extrabold text-primary">{myEntry.rank}위</span>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-              {getLevelInfo(myEntry.user.level).icon}
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold">{myEntry.user.nickname}</p>
-              <p className="text-[10px] text-white/50">{formatScore(myEntry.score, activeTab)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-white/50">다음 순위까지</p>
-              <p className="text-xs font-bold text-primary">
-                {rest.length > 0 && myEntry.rank > 1
-                  ? `${formatScore(rankings[myEntry.rank - 2].score - myEntry.score, activeTab)} 차이`
-                  : '최고 순위!'}
-              </p>
+              ))}
             </div>
           </div>
-        </div>
+
+          {/* Rankings 4+ */}
+          <div className="bg-white mx-0 mb-24">
+            {rest.map((entry) => {
+              const levelInfo = getLevelInfo(entry.user.level);
+              return (
+                <div
+                  key={entry.user.id}
+                  className={`flex items-center gap-3 px-4 py-3.5 border-b border-slate-50 ${entry.isMe ? 'bg-primary/5' : ''}`}
+                >
+                  <div className="w-7 text-center">
+                    <span className={`text-sm font-extrabold ${entry.isMe ? 'text-primary' : 'text-slate-400'}`}>
+                      {entry.rank}
+                    </span>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg border-2 border-slate-200">
+                    {levelInfo.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className={`text-sm font-bold ${entry.isMe ? 'text-primary' : 'text-slate-900'} truncate`}>
+                        {entry.user.nickname}
+                      </p>
+                      {entry.isMe && (
+                        <span className="text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full">나</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400">Lv.{entry.user.level} {getLevelInfo(entry.user.level).title}</p>
+                  </div>
+                  <p className={`text-sm font-bold ${entry.isMe ? 'text-primary' : 'text-slate-700'}`}>
+                    {formatScore(entry.score, activeTab)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* My rank sticky footer */}
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 z-20">
+            {me ? (
+              <div className="bg-slate-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
+                <div className="w-8 text-center">
+                  <span className="text-sm font-extrabold text-primary">{me.rank}위</span>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                  {getLevelInfo(me.user.level).icon}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">{me.user.nickname}</p>
+                  <p className="text-[10px] text-white/50">{formatScore(me.score, activeTab)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-white/50">다음 순위까지</p>
+                  <p className="text-xs font-bold text-primary">
+                    {nextRankEntry
+                      ? `${formatScore(nextRankEntry.score - me.score, activeTab)} 차이`
+                      : '최고 순위!'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-900 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
+                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary text-lg">🏃</div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">아직 순위에 들지 못했어요</p>
+                  <p className="text-[10px] text-white/50">지금 절약하고 제보하면 순위에 올라요!</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

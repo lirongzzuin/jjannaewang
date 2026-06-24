@@ -33,20 +33,3 @@ export const useAppStore = create<AppState>()(
     { name: 'jjannaewang-store' }
   )
 );
-
-// Mock user for development
-export const MOCK_USER: User = {
-  id: 'mock-user-001',
-  toss_user_id: 'toss-001',
-  nickname: '짠내왕유저',
-  level: 5,
-  exp: 1000,
-  premium_tier: null,
-  premium_expiry: null,
-  total_saved_amount: 1200000,
-  streak_days: 7,
-  warning_count: 0,
-  is_banned: false,
-  last_login_at: new Date().toISOString(),
-  created_at: '2023-10-01T00:00:00Z',
-};

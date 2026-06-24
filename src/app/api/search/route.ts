@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       current_lowest_price: parseInt(item.lprice),
       lowest_price_ever: parseInt(item.lprice),
       current_lowest_shop: item.mallName,
-      tracking_count: Math.floor(Math.random() * 2000) + 100,
+      tracking_count: 0,
     }));
     return NextResponse.json({ products, total });
   } catch {

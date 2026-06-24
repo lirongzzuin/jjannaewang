@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase';
 import { getRedis, KEYS } from '@/lib/upstash';
 import { containsBannedWords } from '@/lib/moderation';
 import { getAuthUser } from '@/lib/auth';
+import { awardPioneer } from '@/lib/rewards';
 
 export async function GET(req: NextRequest) {
   const supabase = createServerClient();
@@ -109,5 +110,14 @@ export async function POST(req: NextRequest) {
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ tip: data }, { status: 201 });
+
+  // Pioneer reward — first tip in this category.
+  let reward = null;
+  const { count } = await supabase
+    .from('tips')
+    .select('*', { count: 'exact', head: true })
+    .eq('category', category);
+  if ((count ?? 0) <= 1) reward = await awardPioneer(supabase, session.uid, 'tip');
+
+  return NextResponse.json({ tip: data, reward }, { status: 201 });
 }

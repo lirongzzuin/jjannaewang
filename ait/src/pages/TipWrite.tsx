@@ -4,6 +4,8 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/store";
 import { containsBannedWords } from "@/lib/moderation";
 import { TIP_CATEGORIES, type TipCategory } from "@/types";
+import RewardCelebration, { type PioneerReward } from "@/components/ui/RewardCelebration";
+import { haptic } from "@/lib/apps-in-toss";
 
 const SELECTABLE = TIP_CATEGORIES.filter((c) => c.id !== "all");
 
@@ -18,6 +20,7 @@ export default function TipWrite() {
   const [linkUrl, setLinkUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reward, setReward] = useState<PioneerReward | null>(null);
 
   const canSubmit = title.trim().length >= 5 && body.trim().length >= 20 && !submitting;
 
@@ -39,15 +42,19 @@ export default function TipWrite() {
 
     setSubmitting(true);
     try {
-      await api.post("/api/tips", {
-        user_id: user.id,
+      const res = await api.post<{ reward: PioneerReward | null }>("/api/tips", {
         title: title.trim(),
         body: body.trim(),
         category,
         tags,
         link_url: linkUrl.trim() || null,
       });
-      navigate("/tips", { replace: true });
+      if (res.reward) {
+        haptic("softMedium");
+        setReward(res.reward);
+      } else {
+        navigate("/tips", { replace: true });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "등록에 실패했어요");
       setSubmitting(false);
@@ -150,6 +157,10 @@ export default function TipWrite() {
           광고·홍보성 글은 제한될 수 있어요.
         </p>
       </div>
+
+      {reward && (
+        <RewardCelebration reward={reward} onClose={() => navigate("/tips", { replace: true })} />
+      )}
     </div>
   );
 }
