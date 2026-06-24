@@ -1,0 +1,317 @@
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { formatPrice } from '@/lib/utils';
+import MiniSparkline from '@/components/charts/MiniSparkline';
+import { GoogleAdMob } from '@/lib/apps-in-toss';
+
+const MOCK_TRACKINGS = [
+  {
+    id: 't1',
+    productId: 'p2',
+    name: '하기스 매직팬티 여아 4단계 52매',
+    brand: '하기스',
+    image: 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=200',
+    currentPrice: 31500,
+    targetPrice: 28900,
+    lowestEver: 28900,
+    shop: '네이버스토어',
+    alertEnabled: true,
+    sparkline: [35000, 33500, 32000, 32500, 31800, 31500],
+    change: -1800,
+    status: 'dropping',
+  },
+  {
+    id: 't2',
+    productId: 'p6',
+    name: '맥심 모카골드 커피믹스 100개입',
+    brand: '동서식품',
+    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200',
+    currentPrice: 14800,
+    targetPrice: 12500,
+    lowestEver: 12500,
+    shop: '쿠팡',
+    alertEnabled: true,
+    sparkline: [17000, 16500, 15500, 15000, 14800, 14800],
+    change: -200,
+    status: 'dropping',
+  },
+  {
+    id: 't3',
+    productId: 'p3',
+    name: '신라면 120g x 20개',
+    brand: '농심',
+    image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=200',
+    currentPrice: 13200,
+    targetPrice: 11500,
+    lowestEver: 11500,
+    shop: '쿠팡',
+    alertEnabled: false,
+    sparkline: [15000, 14500, 14000, 13500, 13200, 13200],
+    change: -300,
+    status: 'stable',
+  },
+  {
+    id: 't4',
+    productId: 'p5',
+    name: '크리넥스 3겹 화장지 30롤',
+    brand: '크리넥스',
+    image: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=200',
+    currentPrice: 21000,
+    targetPrice: 18900,
+    lowestEver: 18900,
+    shop: '이마트몰',
+    alertEnabled: true,
+    sparkline: [24000, 23000, 22000, 21500, 21000, 21000],
+    change: -1000,
+    status: 'dropping',
+  },
+  {
+    id: 't5',
+    productId: 'p1',
+    name: '삼다수 2L x 12개',
+    brand: '삼다수',
+    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200',
+    currentPrice: 7900,
+    targetPrice: 7500,
+    lowestEver: 7900,
+    shop: '쿠팡',
+    alertEnabled: true,
+    sparkline: [9500, 9200, 9000, 8900, 8200, 7900],
+    change: -1000,
+    status: 'target_met',
+  },
+];
+
+const FILTER_TABS = [
+  { id: 'all', label: '전체' },
+  { id: 'dropping', label: '하락 중' },
+  { id: 'target_met', label: '목표 달성' },
+  { id: 'alert_off', label: '알림 꺼짐' },
+];
+
+const TOTAL_SLOTS = 10;
+const PRO_SLOTS = 50;
+
+function watchRewardAd(onRewarded: () => void) {
+  // Two-step: load → (on 'loaded') show → (on 'rewarded') callback
+  const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+    options: { adGroupId: 'jjannaewang_extra_slot' },
+    onEvent: (event) => {
+      if (event.type === 'loaded') {
+        GoogleAdMob.showAppsInTossAdMob();
+      }
+      if (event.type === 'rewarded') {
+        onRewarded();
+        cleanup();
+      }
+    },
+    onError: (err) => {
+      console.error('AdMob error:', err);
+      cleanup();
+    },
+  });
+}
+
+export default function TrackingPage() {
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [alerts, setAlerts] = useState<Record<string, boolean>>(
+    Object.fromEntries(MOCK_TRACKINGS.map(t => [t.id, t.alertEnabled]))
+  );
+  const [trackings, setTrackings] = useState(MOCK_TRACKINGS);
+  const [adSlotBonus, setAdSlotBonus] = useState(0);
+
+  const filtered = trackings.filter(t => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'dropping') return t.status === 'dropping';
+    if (activeFilter === 'target_met') return t.status === 'target_met';
+    if (activeFilter === 'alert_off') return !alerts[t.id];
+    return true;
+  });
+
+  const removeTracking = (id: string) => {
+    setTrackings(prev => prev.filter(t => t.id !== id));
+  };
+
+  const toggleAlert = (id: string) => {
+    setAlerts(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  return (
+    <div className="min-h-screen bg-background-light">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Link href="/">
+              <span className="material-symbols-outlined text-slate-600">arrow_back</span>
+            </Link>
+            <h1 className="text-lg font-extrabold text-slate-900">내 추적 목록 👁️</h1>
+          </div>
+          <div className="flex items-center gap-1.5 bg-slate-100 rounded-full px-3 py-1.5">
+            <span className="material-symbols-outlined text-slate-500 text-[16px]">folder</span>
+            <span className="text-xs font-bold text-slate-600">{trackings.length}/{TOTAL_SLOTS + adSlotBonus}</span>
+          </div>
+        </div>
+        {/* Slot progress bar */}
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+          <div
+            className="h-full bg-primary rounded-full transition-all"
+            style={{ width: `${(trackings.length / TOTAL_SLOTS) * 100}%` }}
+          />
+        </div>
+        {/* Filter tabs */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {FILTER_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveFilter(tab.id)}
+              className={`flex-none px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                activeFilter === tab.id ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {tab.label}
+              {tab.id !== 'all' && (
+                <span className="ml-1 text-[10px]">
+                  ({trackings.filter(t =>
+                    tab.id === 'dropping' ? t.status === 'dropping' :
+                    tab.id === 'target_met' ? t.status === 'target_met' :
+                    !alerts[t.id]
+                  ).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div className="space-y-3 p-4">
+        {filtered.map((item) => {
+          const progressToTarget = item.targetPrice
+            ? Math.max(0, Math.min(100, ((item.currentPrice - item.targetPrice) / (item.sparkline[0] - item.targetPrice)) * 100))
+            : 0;
+          const targetMet = item.currentPrice <= item.targetPrice;
+
+          return (
+            <div key={item.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              {targetMet && (
+                <div className="bg-green-500 px-4 py-1.5 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-white text-[16px] fill-icon">check_circle</span>
+                  <span className="text-xs font-bold text-white">목표가 달성! 지금 구매하세요</span>
+                </div>
+              )}
+              <div className="p-4">
+                <div className="flex items-start gap-3">
+                  <Link href={`/product/${item.productId}`}>
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-400 font-semibold">{item.brand}</p>
+                        <Link href={`/product/${item.productId}`}>
+                          <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 hover:text-primary transition-colors">{item.name}</p>
+                        </Link>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* Alert toggle */}
+                        <button
+                          onClick={() => toggleAlert(item.id)}
+                          className={`p-1.5 rounded-lg transition-colors ${alerts[item.id] ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'}`}
+                        >
+                          <span className={`material-symbols-outlined text-[18px] ${alerts[item.id] ? 'fill-icon' : ''}`}>
+                            {alerts[item.id] ? 'notifications_active' : 'notifications_off'}
+                          </span>
+                        </button>
+                        {/* Remove */}
+                        <button
+                          onClick={() => removeTracking(item.id)}
+                          className="p-1.5 rounded-lg bg-slate-100 text-slate-400 hover:text-red-400 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete_outline</span>
+                        </button>
+                      </div>
+                    </div>
+                    {/* Price info */}
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`font-extrabold text-lg ${targetMet ? 'text-green-600' : 'text-primary'}`}>
+                        {formatPrice(item.currentPrice)}
+                      </span>
+                      <span className="text-xs font-bold text-green-600">
+                        {item.change < 0 ? `▼ ${formatPrice(Math.abs(item.change))}` : `▲ ${formatPrice(item.change)}`}
+                      </span>
+                    </div>
+                  </div>
+                  <MiniSparkline data={item.sparkline} width={56} height={28} />
+                </div>
+
+                {/* Progress bar */}
+                {item.targetPrice && (
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                      <span>현재 {formatPrice(item.currentPrice)}</span>
+                      <span>목표 {formatPrice(item.targetPrice)}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${targetMet ? 'bg-green-500' : 'bg-primary'}`}
+                        style={{ width: `${Math.max(5, 100 - progressToTarget)}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {targetMet
+                        ? '목표가 달성됐어요!'
+                        : `목표까지 ${formatPrice(item.currentPrice - item.targetPrice)} 남았어요`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+            <span className="material-symbols-outlined text-6xl mb-3">inventory_2</span>
+            <p className="text-sm font-medium text-slate-400">추적 중인 상품이 없어요</p>
+            <Link href="/search">
+              <button className="mt-4 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-bold">
+                상품 검색하기
+              </button>
+            </Link>
+          </div>
+        )}
+
+        {/* Upgrade CTA */}
+        <div className="bg-gradient-to-br from-slate-900 to-slate-700 rounded-2xl p-5 text-white">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-xl">👑</div>
+            <div>
+              <p className="font-bold">PRO로 업그레이드</p>
+              <p className="text-xs text-white/70">추적 슬롯 {PRO_SLOTS}개 + 6개월 차트</p>
+            </div>
+          </div>
+          <p className="text-xs text-white/60 mb-3">
+            현재 {trackings.length}/{TOTAL_SLOTS + adSlotBonus} 슬롯 사용 중
+          </p>
+          <div className="space-y-2">
+            <Link href="/premium">
+              <button className="w-full py-2.5 bg-primary text-slate-900 rounded-xl text-sm font-extrabold">
+                월 ₩2,900 시작하기
+              </button>
+            </Link>
+            <button
+              onClick={() => watchRewardAd(() => setAdSlotBonus(prev => prev + 1))}
+              className="w-full py-2.5 border border-white/30 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-white/10 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">smart_display</span>
+              광고 보고 슬롯 1개 무료 추가
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
