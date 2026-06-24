@@ -137,11 +137,21 @@ export default function Home() {
   const trackings = (trackingData?.trackings ?? []).slice(0, 3);
 
   const toggleFire = (id: string) => {
+    const willFire = !firedDeals.has(id);
     setFiredDeals((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
+    });
+    // Persist the reaction (best-effort; only meaningful when authenticated).
+    api.post(`/api/feed/${id}/react`, { type: 'fire' }).catch(() => {
+      setFiredDeals((prev) => {
+        const next = new Set(prev);
+        if (willFire) next.delete(id);
+        else next.add(id);
+        return next;
+      });
     });
   };
 
@@ -158,7 +168,6 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <button className="relative p-2 rounded-full hover:bg-slate-100 transition-colors">
             <span className="material-symbols-outlined text-slate-600">notifications</span>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
           <Link to="/profile">
             <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">

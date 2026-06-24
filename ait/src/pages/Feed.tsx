@@ -34,9 +34,9 @@ export default function Feed() {
 
   const deals = data?.deals ?? [];
 
-  const handleFire = (dealId: string) => {
-    // No deal-react endpoint yet — apply an optimistic local update only.
+  const handleFire = async (dealId: string) => {
     if (!data) return;
+    // Optimistic toggle.
     mutate(
       {
         ...data,
@@ -44,15 +44,28 @@ export default function Feed() {
           d.id === dealId
             ? {
                 ...d,
-                fire_count:
-                  d.my_reaction === 'fire' ? d.fire_count - 1 : d.fire_count + 1,
+                fire_count: d.my_reaction === 'fire' ? d.fire_count - 1 : d.fire_count + 1,
                 my_reaction: d.my_reaction === 'fire' ? null : 'fire',
               }
-            : d
+            : d,
         ),
       },
-      { revalidate: false }
+      { revalidate: false },
     );
+    try {
+      await api.post(`/api/feed/${dealId}/react`, { type: 'fire' });
+    } catch {
+      mutate(); // revert/refresh on failure
+    }
+  };
+
+  const handleBought = async (dealId: string) => {
+    try {
+      await api.post(`/api/feed/${dealId}/react`, { type: 'bought' });
+      mutate();
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleShare = async (deal: DealPost) => {
@@ -118,7 +131,7 @@ export default function Feed() {
         <div className="p-4 space-y-4">
           {deals.map((deal, i) => (
             <div key={deal.id} className="space-y-4">
-              <DealCard deal={deal} onFire={handleFire} onShare={handleShare} />
+              <DealCard deal={deal} onFire={handleFire} onBought={handleBought} onShare={handleShare} />
               {/* In-feed ad after every 4th deal */}
               {(i + 1) % 4 === 0 && <AdBanner options={{ variant: "card" }} />}
             </div>

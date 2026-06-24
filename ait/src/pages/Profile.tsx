@@ -41,9 +41,7 @@ export default function Profile() {
     { icon: 'visibility', label: '내 추적 목록', href: '/tracking', badge: data ? String(data.stats.trackingCount) : null },
     { icon: 'lightbulb', label: '내가 쓴 꿀팁', href: '/tips', badge: data ? String(data.stats.tipCount) : null },
     { icon: 'bookmark', label: '스크랩한 꿀팁', href: '/tips', badge: null },
-    { icon: 'flag', label: '신고 내역', href: '#', badge: null },
     { icon: 'workspace_premium', label: '프리미엄 구독', href: '/premium', badge: 'PRO' },
-    { icon: 'settings', label: '설정', href: '#', badge: null },
   ];
 
   return (
@@ -64,9 +62,6 @@ export default function Profile() {
               <span className="material-symbols-outlined text-slate-600 text-[22px]">share</span>
             </button>
           )}
-          <Link to="#">
-            <span className="material-symbols-outlined text-slate-600">settings</span>
-          </Link>
         </div>
       </header>
 
@@ -195,7 +190,7 @@ function ProfileBody({
         {/* EXP bar */}
         <div className="mb-1 flex justify-between text-xs text-slate-400">
           <span>EXP {user.exp.toLocaleString()}</span>
-          <span>Lv.{user.level + 1}까지 {(nextLevelExp - user.exp).toLocaleString()} EXP</span>
+          <span>Lv.{user.level + 1}까지 {Math.max(0, nextLevelExp - user.exp).toLocaleString()} EXP</span>
         </div>
         <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-4">
           <div
@@ -282,7 +277,7 @@ function LevelPerksSection({ level }: { level: number }) {
 
   const active: string[] = [];
   if (perks.extraTrackingSlots > 0) active.push(`추적 슬롯 +${perks.extraTrackingSlots}`);
-  if (perks.freeAiAnalysis) active.push("AI 가격 분석 무료");
+  if (perks.freeAiAnalysis) active.push("가격 분석 무료");
   if (perks.interstitialEvery === Infinity) active.push("전면광고 없음");
   else if (perks.interstitialEvery > 4) active.push("전면광고 절반");
 

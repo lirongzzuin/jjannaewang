@@ -16,7 +16,22 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // Increment view count
   await supabase.from('tips').update({ view_count: (data.view_count || 0) + 1 }).eq('id', params.id);
 
-  return NextResponse.json({ tip: data });
+  // Caller's own reactions (upvote/scrap) for correct UI state.
+  const session = getAuthUser(req);
+  let myReactions: string[] = [];
+  if (session) {
+    const { data: rx } = await supabase
+      .from('tip_reactions')
+      .select('type')
+      .eq('user_id', session.uid)
+      .eq('tip_id', params.id);
+    myReactions = (rx ?? []).map((r) => r.type);
+  }
+
+  return NextResponse.json({
+    tip: { ...data, my_reaction: myReactions.includes('upvote') ? 'upvote' : null },
+    my_reactions: myReactions,
+  });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {

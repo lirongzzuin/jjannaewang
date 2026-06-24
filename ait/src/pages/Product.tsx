@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { formatPrice } from "@/lib/utils";
@@ -15,9 +15,17 @@ import { getLevelPerks } from "@/lib/level-perks";
 import EmptyState from "@/components/ui/EmptyState";
 import SavingsLogModal from "@/components/savings/SavingsLogModal";
 
+interface TrackingInfo {
+  id: string;
+  target_price: number | null;
+  baseline_price: number | null;
+  alert_enabled: boolean;
+}
+
 interface ProductResponse {
   product: ProductType;
   history: PriceHistory[];
+  tracking: TrackingInfo | null;
 }
 
 const PERIODS: { id: Period; days: number }[] = [
@@ -138,6 +146,15 @@ export default function Product() {
 
   const product = data?.product;
   const history = useMemo(() => data?.history ?? [], [data]);
+  const tracking = data?.tracking ?? null;
+
+  // Seed 감시 상태 + 목표가 from the caller's existing tracking (avoids dup-track).
+  useEffect(() => {
+    if (tracking) {
+      setIsTracked(true);
+      if (tracking.target_price != null) setTargetPrice(String(tracking.target_price));
+    }
+  }, [tracking]);
 
   // Group history into per-shop series within the selected period.
   const series = useMemo(() => {
@@ -157,14 +174,13 @@ export default function Product() {
     }));
   }, [history, period]);
 
-  // Latest price per shop → comparison table.
+  // Latest price (+ buy link) per shop → comparison table.
   const shopPrices = useMemo(() => {
-    const latest = new Map<string, number>();
-    for (const h of history) latest.set(h.shop_name, h.price); // ascending → last = latest
-    const rows = Array.from(latest.entries())
-      .map(([shop, price]) => ({ shop, price }))
+    const latest = new Map<string, { price: number; url: string | null }>();
+    for (const h of history) latest.set(h.shop_name, { price: h.price, url: h.affiliate_url }); // ascending → last = latest
+    return Array.from(latest.entries())
+      .map(([shop, v]) => ({ shop, price: v.price, url: v.url }))
       .sort((a, b) => a.price - b.price);
-    return rows;
   }, [history]);
 
   const analysis = useMemo(() => analyzePriceHistory(history), [history]);
@@ -315,9 +331,9 @@ export default function Product() {
             </span>
             {isTracked ? "감시 중 👁️" : "감시 시작 👁️"}
           </button>
-          {shopPrices[0] && (
+          {shopPrices[0]?.url && (
             <a
-              href="#"
+              href={shopPrices[0].url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-bold text-white"
@@ -449,29 +465,40 @@ export default function Product() {
             <h3 className="text-sm font-bold text-slate-900">쇼핑몰별 최신 가격</h3>
           </div>
           <div className="divide-y divide-slate-50">
-            {shopPrices.map((s, i) => (
-              <div
-                key={s.shop}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-                    <span className="material-symbols-outlined text-[16px] text-slate-500">
-                      storefront
-                    </span>
+            {shopPrices.map((s, i) => {
+              const Row = (
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
+                      <span className="material-symbols-outlined text-[16px] text-slate-500">
+                        storefront
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-800">{s.shop}</p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-800">{s.shop}</p>
+                  <div className="flex items-center gap-2">
+                    {i === 0 && (
+                      <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        최저가
+                      </span>
+                    )}
+                    <p className="text-sm font-bold text-slate-900">{formatPrice(s.price)}</p>
+                    {s.url && (
+                      <span className="material-symbols-outlined text-[18px] text-slate-300">
+                        chevron_right
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {i === 0 && (
-                    <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      최저가
-                    </span>
-                  )}
-                  <p className="text-sm font-bold text-slate-900">{formatPrice(s.price)}</p>
-                </div>
-              </div>
-            ))}
+              );
+              return s.url ? (
+                <a key={s.shop} href={s.url} target="_blank" rel="noopener noreferrer">
+                  {Row}
+                </a>
+              ) : (
+                <div key={s.shop}>{Row}</div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -525,7 +552,9 @@ export default function Product() {
         onClose={() => setShowSavings(false)}
         productId={product.id}
         productName={product.name}
-        defaultOriginal={product.lowest_price_ever ?? undefined}
+        defaultOriginal={
+          tracking?.baseline_price ?? product.lowest_price_ever ?? undefined
+        }
         defaultPurchased={product.current_lowest_price ?? undefined}
         source="manual"
       />

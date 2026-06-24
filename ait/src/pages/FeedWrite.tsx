@@ -27,7 +27,7 @@ export default function FeedWrite() {
   const handleSubmit = async () => {
     setError(null);
     if (!user) {
-      setError("로그인이 필요해요");
+      setError("토스 계정 연결 중이에요. 잠시 후 다시 시도해주세요.");
       return;
     }
     if (containsBannedWords(title) || containsBannedWords(description)) {

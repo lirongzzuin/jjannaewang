@@ -207,16 +207,22 @@ export default function Premium() {
             구독은 언제든 해지 가능합니다. 해지 후에도 기간 만료까지 이용 가능해요.
           </p>
 
-          {/* Extra slots option */}
+          {/* Free ways to get more slots */}
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-            <p className="text-sm font-bold text-slate-700 mb-1">추적 슬롯 추가 구매</p>
-            <p className="text-xs text-slate-500 mb-3">구독 없이 슬롯만 추가할 수도 있어요</p>
-            <button
-              onClick={() => handlePurchase('extra_tracking_10')}
-              className="w-full py-2.5 rounded-xl border border-primary text-primary text-sm font-bold hover:bg-primary/10 transition-colors"
-            >
-              슬롯 10개 추가 — ₩1,000
-            </button>
+            <p className="text-sm font-bold text-slate-700 mb-1">무료로 슬롯 늘리기</p>
+            <p className="text-xs text-slate-500 mb-3">
+              구독 없이도 추적 슬롯을 늘릴 수 있어요
+            </p>
+            <ul className="space-y-1.5 text-xs text-slate-600">
+              <li className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-primary">smart_display</span>
+                추적 화면에서 광고 보고 슬롯 +1
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-primary">trending_up</span>
+                레벨업 시 최대 +20 슬롯 (Lv2부터)
+              </li>
+            </ul>
           </div>
         </div>
       </div>

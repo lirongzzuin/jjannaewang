@@ -112,15 +112,25 @@ export default function Tracking() {
     }
   };
 
+  const grantAdSlot = async () => {
+    // Persist the bonus slot server-side so the tracking limit actually rises.
+    setAdSlotBonus((prev) => prev + 1); // instant feedback
+    haptic("softMedium");
+    try {
+      await api.post("/api/me/ad-slot", {});
+    } catch {
+      setAdSlotBonus((prev) => Math.max(0, prev - 1)); // revert on failure
+    }
+  };
+
   const handleWatchAdForSlot = () => {
     if (rewardedAd.isSupported) {
       // Grant the slot ONLY on a verified userEarnedReward event.
       rewardedAd.showAd(() => {
-        setAdSlotBonus((prev) => prev + 1);
-        haptic("softMedium");
+        void grantAdSlot();
       });
     } else {
-      setAdSlotBonus((prev) => prev + 1);
+      void grantAdSlot();
     }
   };
 

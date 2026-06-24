@@ -73,7 +73,7 @@ export default function LevelUpWatcher() {
           ) : (
             <p className="text-xs text-slate-500">
               현재 혜택: 추적 슬롯 +{perks.extraTrackingSlots}
-              {perks.freeAiAnalysis ? " · AI 분석 무료" : ""}
+              {perks.freeAiAnalysis ? " · 가격 분석 무료" : ""}
             </p>
           )}
         </div>

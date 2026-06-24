@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
   const myMonth = totals.get(session.uid) ?? 0;
   const peerValues = Array.from(totals.values());
   const peerCount = peerValues.length;
-  const peerAverage = peerCount ? Math.round(peerValues.reduce((a, b) => a + b, 0) / peerCount) : 0;
+  // Peer average excludes the caller for a fair "vs others" comparison.
+  const others: number[] = [];
+  for (const [uid, v] of totals) if (uid !== session.uid) others.push(v);
+  const peerAverage = others.length
+    ? Math.round(others.reduce((a, b) => a + b, 0) / others.length)
+    : 0;
 
   // Percentile (top X%) among users with savings this month.
   let topPercent: number | null = null;

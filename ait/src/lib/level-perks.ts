@@ -24,7 +24,7 @@ export function getLevelPerks(level: number): LevelPerks {
 export const PERK_MILESTONES = [
   { level: 2, label: '추적 슬롯 +1' },
   { level: 4, label: '추적 슬롯 +3' },
-  { level: 5, label: 'AI 가격 분석 무료 (광고 없이)' },
+  { level: 5, label: '가격 분석 무료 (광고 없이)' },
   { level: 6, label: '추적 슬롯 +7' },
   { level: 8, label: '추적 슬롯 +12 · 전면광고 절반' },
   { level: 10, label: '추적 슬롯 +20 · 전면광고 없음' },

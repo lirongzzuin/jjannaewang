@@ -120,7 +120,7 @@ export default function Ranking() {
         />
       ) : rankings.length === 0 ? (
         <EmptyState
-          icon="trophy"
+          icon="emoji_events"
           title="아직 이달의 랭킹이 없어요"
           description="가장 먼저 절약하고 제보하고 꿀팁을 남겨 1등에 도전해보세요!"
         />

@@ -24,7 +24,22 @@ export async function GET(req: NextRequest) {
 
   const { data, error, count } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ deals: data || [], total: count || 0, page, limit });
+
+  // Annotate the caller's own 'fire' reaction so the UI shows correct state.
+  let deals = data || [];
+  const session = getAuthUser(req);
+  if (session && deals.length) {
+    const { data: reactions } = await supabase
+      .from('deal_reactions')
+      .select('deal_id, type')
+      .eq('user_id', session.uid)
+      .eq('type', 'fire')
+      .in('deal_id', deals.map((d) => d.id));
+    const fired = new Set((reactions ?? []).map((r) => r.deal_id));
+    deals = deals.map((d) => ({ ...d, my_reaction: fired.has(d.id) ? 'fire' : null }));
+  }
+
+  return NextResponse.json({ deals, total: count || 0, page, limit });
 }
 
 export async function POST(req: NextRequest) {

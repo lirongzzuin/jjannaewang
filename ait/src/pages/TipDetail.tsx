@@ -217,7 +217,7 @@ export default function TipDetail() {
             <input
               value={commentBody}
               onChange={(e) => setCommentBody(e.target.value)}
-              placeholder={user ? "댓글을 입력하세요" : "로그인 후 댓글을 남길 수 있어요"}
+              placeholder="댓글을 입력하세요"
               disabled={!user}
               maxLength={500}
               className="flex-1 rounded-full bg-slate-100 px-4 py-2.5 text-sm outline-none disabled:opacity-60"

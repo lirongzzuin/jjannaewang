@@ -35,12 +35,15 @@ export async function POST(req: NextRequest) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('premium_tier, level')
+    .select('premium_tier, level, bonus_tracking_slots')
     .eq('id', session.uid)
     .single();
   const base = user?.premium_tier === 'master' ? Infinity : user?.premium_tier === 'pro' ? 50 : 10;
-  // Level perks add free slots on top of the tier base.
-  const limit = base === Infinity ? Infinity : base + getLevelExtraSlots(user?.level ?? 1);
+  // Tier base + level perks + rewarded-ad bonus slots.
+  const limit =
+    base === Infinity
+      ? Infinity
+      : base + getLevelExtraSlots(user?.level ?? 1) + (user?.bonus_tracking_slots ?? 0);
 
   if ((count || 0) >= limit) {
     return NextResponse.json({ error: 'Tracking limit reached', code: 'LIMIT_REACHED' }, { status: 429 });
@@ -59,13 +62,20 @@ export async function POST(req: NextRequest) {
   ]);
   const baseline = existing?.baseline_price ?? product?.current_lowest_price ?? null;
 
-  const { data, error } = await supabase.from('user_trackings').upsert({
-    user_id: session.uid,
-    product_id,
-    target_price: target_price || null,
-    baseline_price: baseline,
-    alert_enabled: true,
-  }).select().single();
+  const { data, error } = await supabase
+    .from('user_trackings')
+    .upsert(
+      {
+        user_id: session.uid,
+        product_id,
+        target_price: target_price || null,
+        baseline_price: baseline,
+        alert_enabled: true,
+      },
+      { onConflict: 'user_id,product_id' },
+    )
+    .select()
+    .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ tracking: data });
