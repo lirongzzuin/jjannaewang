@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { UserTracking } from "@/types";
 import { useAppStore } from "@/store";
 import EmptyState from "@/components/ui/EmptyState";
+import SavingsLogModal from "@/components/savings/SavingsLogModal";
 import { useFullScreenAd } from "@/hooks/useFullScreenAd";
 import { usePushConsent } from "@/hooks/usePushConsent";
 import { AD_GROUPS } from "@/lib/ads";
@@ -32,6 +33,7 @@ export default function Tracking() {
   const user = useAppStore((s) => s.user);
   const [activeFilter, setActiveFilter] = useState("all");
   const [adSlotBonus, setAdSlotBonus] = useState(0);
+  const [logItem, setLogItem] = useState<UserTracking | null>(null);
 
   const rewardedAd = useFullScreenAd(AD_GROUPS.rewarded);
   const { ensureConsent } = usePushConsent();
@@ -203,11 +205,19 @@ export default function Tracking() {
                   className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
                 >
                   {targetMet && (
-                    <div className="flex items-center gap-2 bg-green-500 px-4 py-1.5">
-                      <span className="material-symbols-outlined fill-icon text-[16px] text-white">
-                        check_circle
-                      </span>
-                      <span className="text-xs font-bold text-white">목표가 달성! 지금 구매하세요</span>
+                    <div className="flex items-center justify-between gap-2 bg-green-500 px-4 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined fill-icon text-[16px] text-white">
+                          check_circle
+                        </span>
+                        <span className="text-xs font-bold text-white">목표가 달성!</span>
+                      </div>
+                      <button
+                        onClick={() => setLogItem(item)}
+                        className="rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-green-700"
+                      >
+                        샀어요! 절약 기록
+                      </button>
                     </div>
                   )}
                   <div className="p-4">
@@ -342,6 +352,17 @@ export default function Tracking() {
           </div>
         </div>
       </div>
+
+      <SavingsLogModal
+        open={logItem !== null}
+        onClose={() => setLogItem(null)}
+        productId={logItem?.product_id}
+        productName={logItem?.product?.name}
+        defaultOriginal={logItem?.product?.current_lowest_price ?? undefined}
+        defaultPurchased={logItem?.target_price ?? undefined}
+        source="tracking"
+        onLogged={() => mutate()}
+      />
     </div>
   );
 }

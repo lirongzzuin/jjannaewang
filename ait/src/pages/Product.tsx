@@ -13,6 +13,7 @@ import { AD_GROUPS } from "@/lib/ads";
 import { useAppStore } from "@/store";
 import { getLevelPerks } from "@/lib/level-perks";
 import EmptyState from "@/components/ui/EmptyState";
+import SavingsLogModal from "@/components/savings/SavingsLogModal";
 
 interface ProductResponse {
   product: ProductType;
@@ -129,6 +130,7 @@ export default function Product() {
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetPrice, setTargetPrice] = useState("");
   const [analysisUnlocked, setAnalysisUnlocked] = useState(false);
+  const [showSavings, setShowSavings] = useState(false);
 
   const rewardedAd = useFullScreenAd(AD_GROUPS.rewarded);
   const { ensureConsent } = usePushConsent();
@@ -326,6 +328,14 @@ export default function Product() {
           )}
         </div>
 
+        <button
+          onClick={() => setShowSavings(true)}
+          className="mx-4 mb-4 flex w-[calc(100%-2rem)] items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 py-2.5 text-xs font-bold text-primary"
+        >
+          <span className="material-symbols-outlined text-[16px]">savings</span>
+          이 상품 싸게 샀어요? 절약 기록하기 (+15 EXP)
+        </button>
+
         <div className="flex gap-1 px-4 pb-3">
           {PERIODS.map((p) => (
             <button
@@ -509,6 +519,16 @@ export default function Product() {
           </div>
         </div>
       )}
+
+      <SavingsLogModal
+        open={showSavings}
+        onClose={() => setShowSavings(false)}
+        productId={product.id}
+        productName={product.name}
+        defaultOriginal={product.lowest_price_ever ?? undefined}
+        defaultPurchased={product.current_lowest_price ?? undefined}
+        source="manual"
+      />
     </div>
   );
 }

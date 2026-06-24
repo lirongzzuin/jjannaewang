@@ -20,5 +20,33 @@ export async function POST(req: NextRequest) {
     .eq('id', session.uid)
     .single();
 
-  return NextResponse.json({ ok: true, ...(data ?? {}) });
+  // Streak milestone rewards (idempotent via unique badge).
+  const streak = data?.streak_days ?? 0;
+  const milestones: Record<number, { badge: string; exp: number }> = {
+    7: { badge: 'streak_7', exp: 50 },
+    30: { badge: 'streak_30', exp: 200 },
+  };
+  let milestone: { badge: string; exp: number } | null = null;
+  if (milestones[streak]) {
+    const m = milestones[streak];
+    const { data: existing } = await supabase
+      .from('user_badges')
+      .select('id')
+      .eq('user_id', session.uid)
+      .eq('badge_code', m.badge)
+      .maybeSingle();
+    if (!existing) {
+      await supabase
+        .from('user_badges')
+        .upsert({ user_id: session.uid, badge_code: m.badge }, { onConflict: 'user_id,badge_code' });
+      try {
+        await supabase.rpc('add_user_exp', { p_user_id: session.uid, p_exp: m.exp });
+      } catch {
+        /* best-effort */
+      }
+      milestone = m;
+    }
+  }
+
+  return NextResponse.json({ ok: true, ...(data ?? {}), milestone });
 }

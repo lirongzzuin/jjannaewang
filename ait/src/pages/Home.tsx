@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/store';
+import DailyBriefing from '@/components/home/DailyBriefing';
 import {
   formatPrice,
   getLevelInfo,
@@ -168,6 +169,9 @@ export default function Home() {
       </header>
 
       <div className="space-y-5 py-4">
+        {/* 오늘의 짠내 브리핑 — daily reason to return */}
+        <DailyBriefing />
+
         {/* Monthly savings card */}
         <div className="mx-4">
           <div

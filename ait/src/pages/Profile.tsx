@@ -223,6 +223,9 @@ function ProfileBody({
             </div>
           ))}
         </div>
+
+        {/* Peer comparison */}
+        <PeerComparison />
       </div>
 
       {/* Level perks */}
@@ -349,6 +352,43 @@ function LevelPerksSection({ level }: { level: number }) {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+interface InsightsResponse {
+  savedThisMonth: number;
+  topPercent: number | null;
+  peerAverage: number;
+  vsPeer: number;
+  peerCount: number;
+}
+
+function PeerComparison() {
+  const { data } = useSWR('/api/me/insights', () => api.get<InsightsResponse>('/api/me/insights'));
+  if (!data) return null;
+
+  if (data.topPercent == null) {
+    return (
+      <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2.5 text-center">
+        <p className="text-xs text-slate-500">
+          이번 달 절약을 기록하면 또래와 순위를 비교할 수 있어요
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-xl bg-primary/10 px-4 py-3 text-center">
+      <p className="text-xs text-slate-600">이번 달 절약 순위</p>
+      <p className="text-lg font-extrabold text-primary">
+        상위 {data.topPercent}%
+      </p>
+      <p className="mt-0.5 text-[11px] text-slate-500">
+        {data.vsPeer >= 0
+          ? `또래 평균보다 ${formatPriceShort(data.vsPeer)} 더 아꼈어요 👏`
+          : `또래 평균까지 ${formatPriceShort(Math.abs(data.vsPeer))} 남았어요`}
+      </p>
     </div>
   );
 }
