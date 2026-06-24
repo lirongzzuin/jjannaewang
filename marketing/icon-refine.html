@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { margin: 0; padding: 0; }
+      html, body { width: 600px; height: 600px; overflow: hidden; }
+      /* 아이콘 내부 크림색과 맞춘 풀블리드 배경 */
+      .frame { width: 600px; height: 600px; background: #f8f4ec; overflow: hidden;
+        position: relative; }
+      /* 검은 테두리가 화면 밖으로 나가도록 살짝 확대 → 풀블리드 */
+      .frame img { position: absolute; top: 50%; left: 50%;
+        width: 600px; height: 600px;
+        transform: translate(-50%, -50%) scale(1.17); }
+    </style>
+  </head>
+  <body>
+    <div class="frame"><img src="./icon.png" alt="icon" /></div>
+  </body>
+</html>

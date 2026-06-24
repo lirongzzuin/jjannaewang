@@ -3,6 +3,7 @@ export interface User {
   id: string;
   toss_user_id: string;
   nickname: string;
+  nickname_set?: boolean;
   level: number;
   exp: number;
   premium_tier: 'pro' | 'master' | null;

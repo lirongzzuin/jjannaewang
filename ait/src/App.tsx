@@ -2,6 +2,7 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import BottomNav from "@/components/ui/BottomNav";
 import AppInitializer from "@/components/AppInitializer";
 import LevelUpWatcher from "@/components/LevelUpWatcher";
+import NicknamePrompt from "@/components/NicknamePrompt";
 
 import Home from "@/pages/Home";
 import Search from "@/pages/Search";
@@ -33,6 +34,7 @@ export default function App() {
     <div className="relative mx-auto min-h-screen max-w-app overflow-x-hidden bg-white shadow-xl">
       <AppInitializer />
       <LevelUpWatcher />
+      <NicknamePrompt />
       <main className={hideNav ? "" : "pb-24"}>
         <Routes>
           <Route path="/" element={<Home />} />

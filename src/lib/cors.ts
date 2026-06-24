@@ -1,33 +1,15 @@
 import { NextResponse } from 'next/server';
 
-// The .ait SPA is served from the Toss CDN origin; the backend lives elsewhere
-// (Vercel), so every API response needs CORS headers. Configure the allowed
-// origin(s) via ALLOWED_ORIGINS (comma-separated). Defaults cover the documented
-// Toss mini-app origin pattern + local dev.
-
-function allowedOrigins(): string[] {
-  const fromEnv = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return [
-    ...fromEnv,
-    'https://service.tossmini.com',
-    'http://localhost:5173',
-  ];
-}
+// The .ait SPA is served from the Toss runtime (origin varies by sandbox/prod
+// and webview), and the backend lives on Vercel. Auth is token-based (Bearer,
+// no cookies), so it's safe to reflect ANY request origin — this avoids the
+// WebView's cross-origin fetch being blocked when its origin isn't a predictable
+// *.tossmini.com host. (CORS doesn't protect the server; our tokens/CRON_SECRET do.)
 
 function resolveOrigin(origin: string | null): string {
-  if (!origin) return allowedOrigins()[0] ?? '*';
-  // Allow any *.apps.tossmini.com / *.tossmini.com subdomain (per-app CDN host).
-  try {
-    const host = new URL(origin).hostname;
-    if (host.endsWith('.tossmini.com') || host === 'tossmini.com') return origin;
-  } catch {
-    /* ignore */
-  }
-  if (allowedOrigins().includes(origin)) return origin;
-  return allowedOrigins()[0] ?? '*';
+  // Reflect a real origin so it works with any client; '*' when absent/opaque.
+  if (!origin || origin === 'null') return '*';
+  return origin;
 }
 
 export function corsHeaders(origin: string | null): Record<string, string> {
