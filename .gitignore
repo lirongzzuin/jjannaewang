@@ -1,10 +1,43 @@
-node_modules
-.next
-dist
-.env
-.env.local
-.DS_Store
+# dependencies
+node_modules/
+ait/node_modules/
+
+# build output
+.next/
+out/
+dist/
+ait/dist/
 *.ait
-ait/node_modules
-ait/dist
+*.tsbuildinfo
+next-env.d.ts
+
+# env (keep only the examples)
+.env
+.env.*
+!.env.example
+ait/.env
+ait/.env.*
+!ait/.env.example
+
+# keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# logs / local data
+*.log
+npm-debug.log*
+*.sqlite
+*.db
+
+# deploy / tooling
 .vercel
+.supabase/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
