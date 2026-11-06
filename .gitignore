@@ -41,3 +41,14 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# 로컬에서 추가했던 규칙
+node_modules
+.next
+dist
+.env.local
+ait/node_modules
+ait/dist
+# mTLS / TLS certificates & private keys — NEVER commit
+mTLS_인증서*/
+*.cer
